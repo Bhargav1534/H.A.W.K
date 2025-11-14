@@ -1,0 +1,24 @@
+# Exclude LLMs and tokenizer data
+brain/
+brain/*
+firebase_cpp_sdk_13.0.0/
+firebase_cpp_sdk_13.0.0/*
+start_ngrok.py
+ngrok_url.txt
+classify.json
+conversation_window.json
+todos.json
+installed_apps.json
+full_history.json
+startmenu_executables.json
+
+
+# (Optional) Any large model files
+*.gguf
+*.bin
+*.pt
+*.safetensors
+*.model
+*.tokenizer
+*.db
+*.sqbpro

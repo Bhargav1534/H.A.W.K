@@ -1,0 +1,8 @@
+Respond with the intent and arguments like below structure this into a json format:
+{
+  "Tool": "intent of the prompt, try to match with intents from tools above",
+  "arguments": {
+    "argument type 1": "argument 1 value",
+    "argument type 2": "argument 2 value",
+  }
+}
