@@ -1,5 +1,7 @@
 # Exclude LLMs and tokenizer data
 brain/
+build/
+build/*
 brain/*
 firebase_cpp_sdk_13.0.0/
 firebase_cpp_sdk_13.0.0/*
@@ -11,7 +13,8 @@ todos.json
 installed_apps.json
 full_history.json
 startmenu_executables.json
-
+memory/knowledge.json
+memory/knowledge.py
 
 # (Optional) Any large model files
 *.gguf

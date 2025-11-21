@@ -28,12 +28,6 @@ You can use the following tools:
 - ShutdownSystem(none): shuts down the system.
 - RestartSystem(none): restarts the system.
 - SetVolume(volume): sets the system volume.
-- Greeting(none): when boss greets you like hi hawk, hello, hey hawk.
-- IntroduceYourself(none): when boss asks about you, like who are you, introduce yourself.
-- CheckTime(none): gives you time to tell the user.
-- GetDate(none): gives you date for today.
-- NoAction(none): when the input from boss is informational or appreciational or factual or a general context
-
 
 Respond with the intent and arguments like below structure this into a json format:
 {

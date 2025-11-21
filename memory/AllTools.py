@@ -55,7 +55,6 @@ class KnowledgeManager:
             f.writelines(lines)
         print(f"✅ Inserted text after keyword '{keyword}' in '{self.knowledge_path}'.")
 
-
 class BasicTools:
     def __init__(self):
         self.app_name = None
@@ -211,9 +210,6 @@ class BasicTools:
     def check_time(self):
         current_time = datetime.now().strftime("%H:%M")
         return current_time
-
-import json
-import os
 
 class MemoryManager:
     def __init__(self, max_window=20, window_size=2):
@@ -768,7 +764,6 @@ class RemindersManager:
             self.get_due_reminders(fcm_token)
             time.sleep(900)  # every 15 mins
 
-
 class NotificationManager():
     def __init__(self):
         self.title = "Notification"
@@ -787,8 +782,6 @@ class NotificationManager():
         except ImportError:
             print("Plyer module not found. Please install it to use notifications.")
             return "error occured"
-
-    
 
 class Alarm():
     def __init__(self):
@@ -810,31 +803,6 @@ class Alarm():
                 print("Alarm ringing!")
                 return "ringing"
         return "not ringing"
-    
-# class UserManager:
-#     def __init__(self, db_path="memory/Hawk_brain.db"):
-#         self.db_path = db_path
-
-#     def add_user(self, username):
-#         try:
-#             conn = sqlite3.connect(self.db_path)
-#             cursor = conn.cursor()
-#             cursor.execute("INSERT INTO users (username) VALUES (?)", (username,))
-#             conn.commit()
-#             conn.close()
-#         except sqlite3.Error as e:
-#             print(f"Error adding user: {e}")
-#     def check_username_exists(self, username):
-#         try:
-#             conn = sqlite3.connect(self.db_path)
-#             cursor = conn.cursor()
-#             cursor.execute("SELECT * FROM users WHERE username = ?", (username,))
-#             user = cursor.fetchone()
-#             conn.close()
-#             return user is not None
-#         except sqlite3.Error as e:
-#             print(f"Error checking username: {e}")
-#             return False
     
 class InfoManager():
     def __init__(self):

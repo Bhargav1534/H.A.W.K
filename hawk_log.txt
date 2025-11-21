@@ -1,0 +1,4 @@
+Traceback (most recent call last):
+  File "C:\Users\chenj\Desktop\codes\H.A.W.K\hawk_backend\main_jarvis.py", line 1, in <module>
+    from fastapi import FastAPI, Request
+ModuleNotFoundError: No module named 'fastapi'

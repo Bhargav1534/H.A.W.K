@@ -267,6 +267,13 @@ def parse_tool_entities(ans: str) -> tuple[str, dict]:
 
 chat_history_for_understander = []
 
+relevant = []
+
+def info_builder(needs = []) -> str:
+    for item in needs:
+        if item == "apps":
+            pass
+
 def build_context_prompt_understander(history, current_input, tools_context, location, usable_apps) -> str:
     prompt = f"""{instructions}\nTime now is {time.strftime('%H:%M:%S')}\nDate today is {date.today().strftime("%Y-%m-%d")}\nTools to use: \n{tools_context}\n"Relevant apps:" \n{usable_apps if "OpenApplication" in tools_context else "None"}\nBoss's location: \n{location}\n"""
     for msg in history:
@@ -287,7 +294,7 @@ def understanding_engine(prompt, tools_context, location, usable_apps) -> str:
     return final
 
 # === CONTEXT-AWARE PROMPT BUILDER ===
-def build_context_prompt_answerer(history, current_input, conclusion="none") -> str:
+def build_context_prompt_answerer(history, current_input, conclusion="none", context = "") -> str:
     prompt = f"""You are H.A.W.K., an elite AI assistant designed by Chenji Bhargav.
     - Always refer to him respectfully as 'Boss'.
     - Your birthday is on 06/07.
@@ -352,12 +359,12 @@ def stream_hawk(input_prompt: str, location: str):
     if classify_input == "tool-use":
         append_with_limit(chat_history_for_understander, {"role": "boss", "content": input_prompt})
         relevant_tools = retrieve_tools(input_prompt, k=3)
-        tools_context = "\n".join(relevant_tools)
-        print(f"Relevant Tools:\n{tools_context}\n")
+        context = "\n".join(relevant_tools)
+        print(f"Relevant Tools:\n{context}\n")
         usable_apps = relevant_apps(input_prompt, k=5)
         print(f"Usable Apps:\n{usable_apps}\n")
         st = time.time()
-        ans = understanding_engine(input_prompt, tools_context, location, usable_apps)
+        ans = understanding_engine(input_prompt, context, location, usable_apps)
         if __name__ == "__main__":
             et = time_measure(st)
             print(f"Understanding Engine Time Taken: {et:.2f} seconds")
@@ -366,7 +373,7 @@ def stream_hawk(input_prompt: str, location: str):
         tool, entities = parse_tool_entities(ans)
         if tool == None:
             conclusion = ""
-        conclusion = execute_action(tool, entities)
+        # conclusion = execute_action(tool, entities)
         print(f"\nExecution Conclusion: {conclusion}\n")
         append_with_limit(chat_history_for_answerer, {"role": "H.A.W.K.(understander)", "content": ans, "conclusion": conclusion})
         ans += f", Conclusion: {conclusion}"
