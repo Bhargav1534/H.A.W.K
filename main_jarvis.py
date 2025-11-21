@@ -7,7 +7,6 @@ import hawk, memory.AllTools as tools
 import uvicorn, threading
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
-import threading
 
 
 security = HTTPBasic()
