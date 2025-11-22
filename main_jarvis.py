@@ -3,15 +3,17 @@ from fastapi.responses import StreamingResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
-import hawk, memory.AllTools as tools
-import uvicorn, threading
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
+import hawk, memory.AllTools as tools, os, uvicorn, threading
+from dotenv import load_dotenv
+load_dotenv()
+
 
 
 security = HTTPBasic()
-USERNAME = "hawk_admin"
-PASSWORD = "jah9r8q9qkj3apiS"
+USERNAME = os.getenv("API_USERNAME")
+PASSWORD = os.getenv("API_PASSWORD")
 
 def authenticate(credentials: HTTPBasicCredentials = Depends(security)):
     if credentials.username != USERNAME or credentials.password != PASSWORD:
@@ -27,6 +29,7 @@ def get_auth(auth: bool = Depends(authenticate)):
 
 remtools = tools.RemindersManager()
 devtools = tools.DeviceManager()
+basic = tools.BasicTools()
 
 def triggerer():
     remtools.trigger()
@@ -70,9 +73,7 @@ async def save_token(request: Request, dependencies=Depends(get_auth)):
     if not fcm_token:
         return JSONResponse(status_code=400, content={"error": "FCM token is required"})
 
-    with open("fcm_token.txt", "w") as f:
-        f.truncate(0)  # Clear the file first
-        f.write(fcm_token)
+    basic.update_env_value("FCM_TOKEN", fcm_token)
 
     print(f"📥 Saved FCM token: {fcm_token}")
     return {"success": True, "message": "Token saved successfully"}

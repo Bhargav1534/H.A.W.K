@@ -15,6 +15,7 @@ full_history.json
 startmenu_executables.json
 memory/knowledge.json
 memory/knowledge.py
+fcm_token.txt
 
 # (Optional) Any large model files
 *.gguf
@@ -25,3 +26,4 @@ memory/knowledge.py
 *.tokenizer
 *.db
 *.sqbpro
+*.env

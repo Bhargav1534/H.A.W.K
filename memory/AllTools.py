@@ -8,6 +8,9 @@ from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
 from plyer import notification
 from firebase_admin import credentials, messaging
 from pathlib import Path
+from dotenv import load_dotenv
+env_path = Path(__file__).parent / ".env"
+load_dotenv(dotenv_path=env_path)
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import notifier
@@ -17,8 +20,7 @@ cred = credentials.Certificate(os.environ["SERVICE_ACCOUNT_PATH"])
 firebase_admin.initialize_app(cred)
 
 # Read FCM token from file
-with open(os.environ["FCM_TOKEN_PATH"]) as f:
-    fcm_token = f.read().strip()
+fcm_token = os.getenv("FCM_TOKEN")
 
 todo_file = "memory/todos.json"
 if not os.path.exists(todo_file):
@@ -37,9 +39,40 @@ if not os.path.exists(convo_file):
 
 class KnowledgeManager:
     def __init__(self):
-        self.knowledge_path = "knowledge.py"
+        base_dir = os.path.dirname(os.path.abspath(__file__))  # folder of this .py file
+        self.knowledge_path = os.path.join(base_dir, "knowledge.py")
+        self.json_path = os.path.join(base_dir, "knowledge.json")
+        self.output = []
 
-    def insert_location(self, text,keyword = "location = ["):
+    def get_info(self, type = []):
+        for t in type:
+            if t == "boss_info":
+                with open(self.json_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                boss_info = data.get("boss_info", {})
+                for key, value in boss_info.items():
+                    self.output.append(F"{key.capitalize()}: {value}")
+            elif t == "locations":
+                with open(self.json_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                for location in data.get("locations", []):
+                    self.output.append(F"{location.get('name', 'Unknown')} at (Latitude: {location.get('latitude', 'N/A')}, Longitude: {location.get('longitude', 'N/A')})")
+            else:
+                keyword = f"{keyword} = ["
+                with open(self.knowledge_path, "r", encoding="utf-8") as f:
+                    lines = f.readlines()
+                for i, line in enumerate(lines):
+                    if keyword in line:
+                        start_line = i + 1
+                        prefs = []
+                        for j in range(start_line, len(lines)):
+                            if lines[j].strip() == "]":
+                                break
+                            prefs.append(lines[j].strip().strip('",'))
+                        self.output.append(prefs if prefs else "No boss preferences found.")
+                    
+
+    def insert_location(self, text, keyword = "location = ["):
         with open(self.knowledge_path, "r", encoding="utf-8") as f:
             lines = f.readlines()
 
@@ -55,12 +88,59 @@ class KnowledgeManager:
             f.writelines(lines)
         print(f"✅ Inserted text after keyword '{keyword}' in '{self.knowledge_path}'.")
 
+    def insert_boss_info(self, info):
+        with open(self.json_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        data["boss_info"] = info
+        with open(self.json_path, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+            print("✅ Boss info updated in 'knowledge.json'.")
+        
+    def insert_location_json(self, location_name, latitude, longitude):
+        with open(self.json_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        if "locations" not in data:
+            data["locations"] = []
+        data["locations"].append({
+            "name": location_name,
+            "latitude": latitude,
+            "longitude": longitude
+        })
+        with open(self.json_path, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+            print(f"✅ Location '{location_name}' added to 'knowledge.json'.")
+
 class BasicTools:
     def __init__(self):
         self.app_name = None
         self.path = None
         self.file_name = None
     
+    def update_env_value(key, new_value, path=env_path):
+        lines = []
+
+        try:
+            with open(path, "r") as file:
+                lines = file.readlines()
+        except FileNotFoundError:
+            lines = []
+
+        key_exists = False
+        for i, line in enumerate(lines):
+            if line.startswith(key + "="):
+                lines[i] = f"{key}={new_value}\n"
+                key_exists = True
+                break
+
+        if not key_exists:
+            lines.append(f"{key}={new_value}\n")
+
+        with open(path, "w") as file:
+            file.writelines(lines)
+
+        print(f"✔ Updated {key} in {path}")
+
+
     def open_app(self, app_name):
         try:
             self.app_name = app_name
@@ -388,7 +468,7 @@ class AppLauncher:
         self.app_paths = {
             "notepad": "notepad.exe",
             "calculator": "calc.exe",
-            "spotify": r"C:\Users\YourUser\AppData\Roaming\Spotify\Spotify.exe",
+            "spotify": fr"C:\Users\{os.getenv('USERNAME')}\AppData\Roaming\Spotify\Spotify.exe",
             "chrome": r"C:\Program Files\Google\Chrome\Application\chrome.exe",
             # add more apps here
         }
@@ -416,8 +496,8 @@ class AppLauncher:
         search_dirs = [
             r"C:\\Program Files",
             r"C:\\Program Files (x86)",
-            r"C:\\Users\\chenj\\AppData\\Local",
-            r"C:\\Users\\chenj\\AppData\\Roaming"
+            f"C:\\Users\\{os.getenv('USERNAME')}\\AppData\\Local",
+            f"C:\\Users\\{os.getenv('USERNAME')}\\AppData\\Roaming"
         ]
 
         app_exe = app_name.lower() + ".exe"
@@ -808,7 +888,7 @@ class InfoManager():
     def __init__(self):
         self.wiki_wiki = wikipediaapi.Wikipedia(user_agent='Hawk (merlin@example.com)', language='en')
         self.articles = []
-        self.api_key = "058f233cb78b4e31b2f8fb7952c4b299"
+        self.api_key = os.getenv("NEWSAPI_KEY")  # Ensure you have set this environment variable
 
     def search_wikipedia(self, query):
         page = self.wiki_wiki.page(query)
@@ -865,5 +945,5 @@ class DeviceManager:
             print(f"Error removing device: {e}")
 
 if __name__ == "__main__":
-    loc = AppLauncher()
-    loc.search_and_open("LM Studio")
+    loc = KnowledgeManager()
+    loc.insert_location_json("Boss's house", 13.0074148, 77.7202919)

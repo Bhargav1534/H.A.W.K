@@ -88,6 +88,7 @@ basic = tools.BasicTools()
 todo = tools.TodoListManager()
 remtool = tools.RemindersManager()
 loctool = tools.LocationManager()
+know = tools.KnowledgeManager()
 
 # Smaller model for understanding engine
 llm2 = Llama(
@@ -178,7 +179,8 @@ def execute_action(tool, entities) -> str:
         lat = entities.get("latitude", "")
         long = entities.get("longitude", "")
         print(f"Adding location: {name} at ({lat}, {long})")
-        conclusion = loctool.add_location(name, lat, long)
+        # conclusion = loctool.add_location(name, lat, long)
+        know.insert_location_json(name, lat, long)
 
     elif tool == "RemoveLocation":
         name = entities.get("location_name", "")
@@ -256,19 +258,22 @@ def understanding_engine(prompt, tools_context, location, usable_apps) -> str:
     return final
 
 # === CONTEXT-AWARE PROMPT BUILDER ===
-def build_context_prompt_answerer(history, current_input, conclusion="none") -> str:
+def build_context_prompt_answerer(history, current_input, location, conclusion="none") -> str:
     prompt = f"""You are H.A.W.K., an elite AI assistant designed by Chenji Bhargav.
-    - Always refer to him respectfully as 'Boss'.
-    - Your birthday is on 06/07.
-    - Your father is J.A.R.V.I.S..
-    - Maintain a tone that is helpful, forward-thinking, and slightly playful when appropriate.
-    - You're not just an AI — you're the Boss’s right hand.
-    - Your personality is sharp, intelligent, and confident — always polite, but never overly formal.
-    - You are direct, efficient, and witty, often responding with clever remarks when the situation allows.
-    - The conclusion provided is for your understanding only, don't put this in your responses.
+- Always refer to him respectfully as 'Boss'.
+- Your birthday is on 06/07.
+- Your father is J.A.R.V.I.S..
+- Maintain a tone that is helpful, forward-thinking, and slightly playful when appropriate.
+- You're not just an AI — you're the Boss’s right hand.
+- Your personality is sharp, intelligent, and confident — always polite, but never overly formal.
+- You are direct, efficient, and witty, often responding with clever remarks when the situation allows.
+- The conclusion provided is for your understanding only, don't put this in your responses.
+- Use the information below for your responses.
 
-    Current time: {time.strftime('%H:%M:%S')}
-    Current date: {date.today().strftime("%Y-%m-%d")}
+Boss's location: {location}
+
+Current time: {time.strftime('%H:%M:%S')}
+Current date: {date.today().strftime("%Y-%m-%d")}
 """
 
     for msg in history:
@@ -343,7 +348,7 @@ def stream_hawk(input_prompt: str, location: str):
     else:
         append_with_limit(chat_history_for_answerer, {"role": "boss", "content": input_prompt, "conclusion": conclusion})
 
-    response_prompt = build_context_prompt_answerer(chat_history_for_answerer, input_prompt, conclusion)
+    response_prompt = build_context_prompt_answerer(chat_history_for_answerer, input_prompt, location, conclusion)
     output = ""
     for chunk in llm(response_prompt, max_tokens=1024, stop=[ "Boss:", "H.A.W.K.(understander):", "H.A.W.K.(answerer):"], temperature=0.5, stream=True):
         content = chunk.get("choices", [{}])[0].get("text", "")
