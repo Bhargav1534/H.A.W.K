@@ -1,0 +1,11 @@
+# Ignore data files from language statistics
+*.json linguist-vendored
+*.txt linguist-vendored
+*.log linguist-vendored
+
+# Ignore documentation or vendor folders
+docs/* linguist-vendored
+assets/* linguist-vendored
+static/* linguist-vendored
+build/* linguist-vendored
+dist/* linguist-vendored
