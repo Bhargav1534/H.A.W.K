@@ -1,7 +1,9 @@
 # Exclude LLMs and tokenizer data
 brain/
 build/
+build/main_jarvis
 build/*
+build/* linguist-vendored
 brain/*
 firebase_cpp_sdk_13.0.0/
 firebase_cpp_sdk_13.0.0/*
