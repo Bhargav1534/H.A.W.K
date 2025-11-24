@@ -1,10 +1,10 @@
-from fastapi import FastAPI, Request, Depends, HTTPException, status
+from fastapi import FastAPI, Request, Depends, HTTPException, status, WebSocket, WebSocketDisconnect
 from fastapi.responses import StreamingResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+# from fastapi import FastAPI
 import hawk, memory.AllTools as tools, os, uvicorn, threading
 from dotenv import load_dotenv
 load_dotenv()
@@ -49,6 +49,7 @@ app = FastAPI(lifespan=lifespan, debug=False)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -113,6 +114,30 @@ async def new_device(request: Request, dependencies=Depends(get_auth)):
     devtools.add_device(device_info)
     print(f"📥 Saved device info: {device_info}")
     return {"success": True, "message": "Device info saved successfully"}
+
+active_connections = []
+
+async def broadcast(message: dict):
+    for connection in active_connections:
+        print("📤 Broadcasting:", message)
+        await connection.send_json(message)
+
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    await websocket.accept()
+    active_connections.append(websocket)
+    print(f"📡 New WebSocket connection established.\n {active_connections}")
+
+    try:
+        while True:
+            data = await websocket.receive_json()
+            print("📥 Received:", data)
+            await broadcast(data)
+    except WebSocketDisconnect:
+        active_connections.remove(websocket)
+    except Exception:
+        # Handles "ping/pong timeout"
+        active_connections.remove(websocket)
 
 # ✅ 4. Run the app with proper host
 if __name__ == "__main__":

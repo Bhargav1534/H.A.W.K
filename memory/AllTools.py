@@ -127,7 +127,9 @@ class BasicTools:
 
         key_exists = False
         for i, line in enumerate(lines):
-            if line.startswith(key + "="):
+            if not isinstance(line, str):
+                continue
+            if line.strip().startswith(f"{key}="):
                 lines[i] = f"{key}={new_value}\n"
                 key_exists = True
                 break
@@ -139,6 +141,7 @@ class BasicTools:
             file.writelines(lines)
 
         print(f"✔ Updated {key} in {path}")
+
 
 
     def open_app(self, app_name):
