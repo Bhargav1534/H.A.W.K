@@ -946,7 +946,3 @@ class DeviceManager:
             conn.close()
         except sqlite3.Error as e:
             print(f"Error removing device: {e}")
-
-if __name__ == "__main__":
-    loc = KnowledgeManager()
-    loc.insert_location_json("Boss's house", 13.0074148, 77.7202919)
