@@ -219,8 +219,9 @@ def parse_tool_entities(ans: str) -> tuple[str, dict]:
             else:
                 data = {}
 
-    tool = data.get("Tool" or "tool", None)
-    entities = data.get("Arguments" or "arguments", {})
+    tool = data.get("Tool") or data.get("tool")
+    entities = data.get("Arguments") or data.get("arguments") or {}
+
 
     # If entities is a string containing JSON, load it
     if isinstance(entities, str):

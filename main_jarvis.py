@@ -87,7 +87,7 @@ async def head_endpoint(dependencies=Depends(get_auth)):
 @app.post("/hawk")
 async def stream_endpoint(request: Request, dependencies=Depends(get_auth)):
     data = await request.json()
-    prompt = data.get("prompt", "")
+    prompt = data.get("prompt", "") or data.get("message", "")
     location = data.get("location", "")
     # hawk.stream_hawk(prompt) must yield strings for StreamingResponse
     return StreamingResponse(hawk.stream_hawk(prompt, location), media_type="text/event-stream")
