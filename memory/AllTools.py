@@ -9,7 +9,7 @@ from plyer import notification
 from firebase_admin import credentials, messaging
 from pathlib import Path
 from dotenv import load_dotenv
-env_path = Path(__file__).parent / ".env"
+env_path = Path("C:\\Users\\chenj\\Desktop\\codes\\H.A.W.K\\hawk_backend\\.env")
 load_dotenv(dotenv_path=env_path)
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -116,31 +116,31 @@ class BasicTools:
         self.path = None
         self.file_name = None
     
-    def update_env_value(key, new_value, path=env_path):
-        lines = []
-
+    def update_env_value(self, key, new_value, path=env_path):
+        # Read file
         try:
             with open(path, "r") as file:
                 lines = file.readlines()
         except FileNotFoundError:
             lines = []
+            print(f"⚠️ .env file not found at {path}. A new one will be created.")
 
-        key_exists = False
-        for i, line in enumerate(lines):
-            if not isinstance(line, str):
-                continue
-            if line.strip().startswith(f"{key}="):
-                lines[i] = f"{key}={new_value}\n"
-                key_exists = True
-                break
+        # Remove last line if exists
+        if lines:
+            removed = lines.pop().strip()
+            print(f"🗑 Removed last line: {removed}")
+        else:
+            print("🗑 No lines to remove (file empty).")
 
-        if not key_exists:
-            lines.append(f"{key}={new_value}\n")
+        # Append new key=value
+        lines.append(f'{key}="{new_value}"\n')
 
+        # Write back
         with open(path, "w") as file:
             file.writelines(lines)
 
-        print(f"✔ Updated {key} in {path}")
+        print(f"✔ Updated {key} as \"{new_value}\" in {path}")
+
 
 
 
@@ -946,3 +946,6 @@ class DeviceManager:
             conn.close()
         except sqlite3.Error as e:
             print(f"Error removing device: {e}")
+
+if __name__ == "__main__":
+    pass

@@ -1,9 +1,15 @@
-import firebase_admin
+import firebase_admin, os
 from firebase_admin import credentials, messaging
+from pathlib import Path
+# from dotenv import load_dotenv
+# env_path = Path("C:\\Users\\chenj\\Desktop\\codes\\H.A.W.K\\hawk_backend\\.env")
+# load_dotenv(dotenv_path=env_path)
 
+fcm_token = os.getenv("FCM_TOKEN")
 # Initialize Firebase Admin with service account
 cred = credentials.Certificate("C:\\Users\\chenj\\Desktop\\codes\\secrets\\service-account.json")
 firebase_admin.initialize_app(cred)
+
 
 # Function to send push notification
 def send_push_notification(token: str, title: str, body: str):
@@ -31,10 +37,6 @@ def send_push_notification(token: str, title: str, body: str):
 
     response = messaging.send(message)
     print(f"✅ Successfully sent message: {response}")
-
-with open("C:\\Users\\chenj\\Desktop\\codes\\secrets\\fcm_token.txt", "r") as f:
-    fcm_token = f.read().strip()
-
 
 send_push_notification(fcm_token, "H.A.W.K. Alert", "\nThis is a test notification from FastAPI!\n\n")
 
