@@ -1,6 +1,8 @@
 # Exclude LLMs and tokenizer data
 brain/
 build/
+hawk_llm_wrap/
+hawk_llm_wrap/*
 build/main_jarvis
 build/*
 brain/*

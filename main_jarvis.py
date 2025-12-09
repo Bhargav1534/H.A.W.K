@@ -96,6 +96,7 @@ async def stream_endpoint(request: Request, dependencies=Depends(get_auth)):
 async def get_location(request: Request, dependencies=Depends(get_auth)):
     data = await request.json()
     location = data.get("location", "")
+    print(f"📥 Location received: {location}")
     return {"location": location}
 
 @app.post("/get_reminders")
@@ -114,6 +115,13 @@ async def new_device(request: Request, dependencies=Depends(get_auth)):
     devtools.add_device(device_info)
     print(f"📥 Saved device info: {device_info}")
     return {"success": True, "message": "Device info saved successfully"}
+
+@app.get("/activity")
+async def get_activity(request: Request, dependencies=Depends(get_auth)):
+    data = await request.json()
+    url, dom, highlighted_text = data.get("url", ""), data.get("dom", ""), data.get("highlighted_text", "")
+    print(f"📥 Activity received: URL={url}, DOM length={len(dom)}, Highlighted Text={highlighted_text}")
+    return {"url": url, "dom": dom, "highlighted_text": highlighted_text}
 
 active_connections = []
 
