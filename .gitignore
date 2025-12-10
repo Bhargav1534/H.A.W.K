@@ -6,6 +6,8 @@ hawk_llm_wrap/*
 build/main_jarvis
 build/*
 brain/*
+dist/
+dist/*
 firebase_cpp_sdk_13.0.0/
 firebase_cpp_sdk_13.0.0/*
 start_ngrok.py
@@ -19,6 +21,8 @@ startmenu_executables.json
 memory/knowledge.json
 memory/knowledge.py
 fcm_token.txt
+agent.py
+
 
 # (Optional) Any large model files
 *.gguf
@@ -30,3 +34,4 @@ fcm_token.txt
 *.db
 *.sqbpro
 *.env
+*.spec

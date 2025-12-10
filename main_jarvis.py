@@ -4,7 +4,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from contextlib import asynccontextmanager
-# from fastapi import FastAPI
 import hawk, memory.AllTools as tools, os, uvicorn, threading
 from dotenv import load_dotenv
 load_dotenv()
@@ -45,7 +44,6 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan, debug=False)
 
 # ✅ 1. Add CORS to allow mobile app connections
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -54,11 +52,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
 # ✅ 2. Define the request body schema (optional but cleaner)
 class PromptInput(BaseModel):
     prompt: str
-
 
 class NotificationRequest(BaseModel):
     fcm_token: str
@@ -116,12 +112,14 @@ async def new_device(request: Request, dependencies=Depends(get_auth)):
     print(f"📥 Saved device info: {device_info}")
     return {"success": True, "message": "Device info saved successfully"}
 
-@app.get("/activity")
+@app.post("/activity")
 async def get_activity(request: Request, dependencies=Depends(get_auth)):
     data = await request.json()
-    url, dom, highlighted_text = data.get("url", ""), data.get("dom", ""), data.get("highlighted_text", "")
-    print(f"📥 Activity received: URL={url}, DOM length={len(dom)}, Highlighted Text={highlighted_text}")
-    return {"url": url, "dom": dom, "highlighted_text": highlighted_text}
+    # url, dom, highlighted_text = data.get("url", ""), data.get("dom", ""), data.get("highlighted_text", "")
+    # print(f"📥 Activity received: URL={url}, DOM={dom}, Highlighted Text={highlighted_text}")
+    # return {"url": url, "dom": dom, "highlighted_text": highlighted_text}
+    print(f"📥 Activity received: {data}")
+    return data
 
 active_connections = []
 
