@@ -144,59 +144,14 @@ class BasicTools:
 
 
 
-    def open_app(self, app_name):
+    def open_app(self, path):
         try:
-            self.app_name = app_name
-
-            # Define aliases for app names to process names
-            process_aliases = {
-                "google chrome": "chrome.exe",
-                "chrome": "chrome.exe",
-                "opera": "opera.exe",
-                "spotify": "spotify.exe",
-                "visual studio code": "code.exe",
-                "vscode": "code.exe",
-                "notepad": "notepad.exe",
-                "file explorer": "explorer.exe"
-            }
-
-            # Normalize process name
-            app_key = app_name.lower()
-            process_name = process_aliases.get(app_key, app_key + ".exe")
-
-            # Check if the app is already running
-            is_running = any(process_name.lower() == proc.name().lower() for proc in psutil.process_iter())
-            if is_running:
-                print("[INFO] Launch cancelled, app already running.")
-                return "app already open"
-
-            before = [p.name() for p in psutil.process_iter()]
-
-            # Launch using Start Menu
-            pag.hotkey('win', 's')
-            time.sleep(1)
-            for i in self.app_name:
-                pag.press(i)
-            time.sleep(1)
-            pag.press('enter')
-
-            print("[INFO] Waiting for app to launch...")
-            time.sleep(5)
-
-            after = [p.name() for p in psutil.process_iter()]
-            print(f"[INFO] Launched processes: {list(set(after) - set(before))}")
-
-            target = process_name.lower().replace(".exe", "")
-            if any(target in proc.lower() for proc in after):
-                print(f"[SUCCESS] '{self.app_name}' opened successfully.")
-                return "opened"
-            else:
-                print(f"[FAILURE] '{self.app_name}' did not appear in running processes.")
-                return "error occured - app not opened"
-
+            # 'runas' tells Windows to run as administrator
+            subprocess.run(path, shell=True, check=True)
+        except subprocess.CalledProcessError as e:
+            print(f"Failed to open {path}: {e}")
         except Exception as e:
-            print(f"[ERROR] Exception occurred: {e}")
-            return f"error occured {e}"
+            print(f"Error: {e}")
 
 
 

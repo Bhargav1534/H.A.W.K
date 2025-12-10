@@ -8,8 +8,6 @@ import hawk, memory.AllTools as tools, os, uvicorn, threading
 from dotenv import load_dotenv
 load_dotenv()
 
-
-
 security = HTTPBasic()
 USERNAME = os.getenv("API_USERNAME")
 PASSWORD = os.getenv("API_PASSWORD")
