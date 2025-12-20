@@ -30,33 +30,12 @@ with open("prompt/instructions.txt", "r", encoding="utf-8") as f:
 with open("prompt/format.txt", "r", encoding="utf-8") as f:
     format = f.read()
 
-# === EMBEDDING & VECTOR STORE SETUP ===
-with open("memory/knowledge.json", "r", encoding="utf-8") as f:
-    boss_info = json.load(f)
-
 # used to build the vector database for information retrieval
 # 1. Load embedder
 embedder = SentenceTransformer("all-MiniLM-L6-v2")
 classify_data = []
 
 # 2. Encode tools
-def boss_info_to_text(data):    
-    boss = data.get("boss_info", {})
-    sentences = []
-
-    for key, value in boss.items():
-        is_list = False
-        # handle lists (like hobbies)
-        if isinstance(value, list):
-            value = ", ".join(value)
-            if len(value.split(", ")) > 1:
-                is_list = True
-        # create clean readable sentence
-        sentences.append(f"The {key} of the boss {'are' if is_list else 'is'} {value}.")
-    return sentences
-
-boss_info_text = boss_info_to_text(boss_info)
-info_embeddings = embedder.encode(boss_info_text)
 embeddings = embedder.encode(tk.tools)
 embeddings2 = embedder.encode(tk.boss_prefs)
 app_embed = embedder.encode(tk.app_info)
@@ -72,9 +51,6 @@ app_index.add(app_embed)
 
 info_index = faiss.IndexFlatL2(dimension)
 info_index.add(info_embed)
-
-boss_info_index = faiss.IndexFlatL2(dimension)
-boss_info_index.add(info_embeddings)
 
 # 4. Encode boss prefs and add to the same index
 def relevant_apps(user_input, k=5) -> list[str]:
@@ -105,13 +81,6 @@ def retrieve_info(query, k=3) -> list[str]:
         return []  # or return ["No relevant info found"]
     return [tk.info[i] for i in I[0] if i < len(tk.info)]  # extra safety
 
-def retrieve_boss_info(data, k=3) -> list[str]:    
-    enc = embedder.encode([data])
-    D, I = boss_info_index.search(enc, k)
-    return [boss_info_text[i] for i in I[0] if i < len(boss_info_text)]
-
-
-
 
 # === TOOL INITIALIZATION ===
 memtool = tools.MemoryManager()
@@ -119,6 +88,7 @@ basic = tools.BasicTools()
 todo = tools.TodoListManager()
 remtool = tools.RemindersManager()
 loctool = tools.LocationManager()
+know = tools.KnowledgeManager()
 
 # Smaller model for understanding engine
 llm2 = Llama(
@@ -209,7 +179,8 @@ def execute_action(tool, entities) -> str:
         lat = entities.get("latitude", "")
         long = entities.get("longitude", "")
         print(f"Adding location: {name} at ({lat}, {long})")
-        conclusion = loctool.add_location(name, lat, long)
+        # conclusion = loctool.add_location(name, lat, long)
+        know.insert_location_json(name, lat, long)
 
     elif tool == "RemoveLocation":
         name = entities.get("location_name", "")
@@ -248,8 +219,9 @@ def parse_tool_entities(ans: str) -> tuple[str, dict]:
             else:
                 data = {}
 
-    tool = data.get("Tool" or "tool", None)
-    entities = data.get("Arguments" or "arguments", {})
+    tool = data.get("Tool") or data.get("tool")
+    entities = data.get("Arguments") or data.get("arguments") or {}
+
 
     # If entities is a string containing JSON, load it
     if isinstance(entities, str):
@@ -266,13 +238,6 @@ def parse_tool_entities(ans: str) -> tuple[str, dict]:
     
 
 chat_history_for_understander = []
-
-relevant = []
-
-def info_builder(needs = []) -> str:
-    for item in needs:
-        if item == "apps":
-            pass
 
 def build_context_prompt_understander(history, current_input, tools_context, location, usable_apps) -> str:
     prompt = f"""{instructions}\nTime now is {time.strftime('%H:%M:%S')}\nDate today is {date.today().strftime("%Y-%m-%d")}\nTools to use: \n{tools_context}\n"Relevant apps:" \n{usable_apps if "OpenApplication" in tools_context else "None"}\nBoss's location: \n{location}\n"""
@@ -294,19 +259,22 @@ def understanding_engine(prompt, tools_context, location, usable_apps) -> str:
     return final
 
 # === CONTEXT-AWARE PROMPT BUILDER ===
-def build_context_prompt_answerer(history, current_input, conclusion="none", context = "") -> str:
+def build_context_prompt_answerer(history, current_input, location, conclusion="none") -> str:
     prompt = f"""You are H.A.W.K., an elite AI assistant designed by Chenji Bhargav.
-    - Always refer to him respectfully as 'Boss'.
-    - Your birthday is on 06/07.
-    - Your father is J.A.R.V.I.S..
-    - Maintain a tone that is helpful, forward-thinking, and slightly playful when appropriate.
-    - You're not just an AI — you're the Boss’s right hand.
-    - Your personality is sharp, intelligent, and confident — always polite, but never overly formal.
-    - You are direct, efficient, and witty, often responding with clever remarks when the situation allows.
-    - The conclusion provided is for your understanding only, don't put this in your responses.
+- Always refer to him respectfully as 'Boss'.
+- Your birthday is on 06/07.
+- Your father is J.A.R.V.I.S..
+- Maintain a tone that is helpful, forward-thinking, and slightly playful when appropriate.
+- You're not just an AI — you're the Boss’s right hand.
+- Your personality is sharp, intelligent, and confident — always polite, but never overly formal.
+- You are direct, efficient, and witty, often responding with clever remarks when the situation allows.
+- The conclusion provided is for your understanding only, don't put this in your responses.
+- Use the information below for your responses.
 
-    Current time: {time.strftime('%H:%M:%S')}
-    Current date: {date.today().strftime("%Y-%m-%d")}
+Boss's location: {location}
+
+Current time: {time.strftime('%H:%M:%S')}
+Current date: {date.today().strftime("%Y-%m-%d")}
 """
 
     for msg in history:
@@ -359,12 +327,12 @@ def stream_hawk(input_prompt: str, location: str):
     if classify_input == "tool-use":
         append_with_limit(chat_history_for_understander, {"role": "boss", "content": input_prompt})
         relevant_tools = retrieve_tools(input_prompt, k=3)
-        context = "\n".join(relevant_tools)
-        print(f"Relevant Tools:\n{context}\n")
+        tools_context = "\n".join(relevant_tools)
+        print(f"Relevant Tools:\n{tools_context}\n")
         usable_apps = relevant_apps(input_prompt, k=5)
         print(f"Usable Apps:\n{usable_apps}\n")
         st = time.time()
-        ans = understanding_engine(input_prompt, context, location, usable_apps)
+        ans = understanding_engine(input_prompt, tools_context, location, usable_apps)
         if __name__ == "__main__":
             et = time_measure(st)
             print(f"Understanding Engine Time Taken: {et:.2f} seconds")
@@ -373,7 +341,7 @@ def stream_hawk(input_prompt: str, location: str):
         tool, entities = parse_tool_entities(ans)
         if tool == None:
             conclusion = ""
-        # conclusion = execute_action(tool, entities)
+        conclusion = execute_action(tool, entities)
         print(f"\nExecution Conclusion: {conclusion}\n")
         append_with_limit(chat_history_for_answerer, {"role": "H.A.W.K.(understander)", "content": ans, "conclusion": conclusion})
         ans += f", Conclusion: {conclusion}"
@@ -381,7 +349,7 @@ def stream_hawk(input_prompt: str, location: str):
     else:
         append_with_limit(chat_history_for_answerer, {"role": "boss", "content": input_prompt, "conclusion": conclusion})
 
-    response_prompt = build_context_prompt_answerer(chat_history_for_answerer, input_prompt, conclusion)
+    response_prompt = build_context_prompt_answerer(chat_history_for_answerer, input_prompt, location, conclusion)
     output = ""
     for chunk in llm(response_prompt, max_tokens=1024, stop=[ "Boss:", "H.A.W.K.(understander):", "H.A.W.K.(answerer):"], temperature=0.5, stream=True):
         content = chunk.get("choices", [{}])[0].get("text", "")

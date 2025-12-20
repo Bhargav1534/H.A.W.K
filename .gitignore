@@ -22,6 +22,8 @@ memory/knowledge.json
 memory/knowledge.py
 fcm_token.txt
 agent.py
+situational/
+situational/*
 
 
 # (Optional) Any large model files

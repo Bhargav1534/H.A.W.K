@@ -37,6 +37,9 @@ if not os.path.exists(convo_file):
     with open(convo_file, "w") as f:
         json.dump([], f)
 
+class ActivityManager:
+    pass
+
 class KnowledgeManager:
     def __init__(self):
         base_dir = os.path.dirname(os.path.abspath(__file__))  # folder of this .py file
@@ -144,7 +147,7 @@ class BasicTools:
 
 
 
-    def open_app(self, path):
+    def open_app(self, path): #needs an update !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         try:
             # 'runas' tells Windows to run as administrator
             subprocess.run(path, shell=True, check=True)
@@ -262,6 +265,20 @@ class MemoryManager:
 
         # Load existing memory if present
         self.load_memory()
+
+    def history(self):
+        self.load_memory()
+        hist = []
+        for msg in self.full_history[-21:]:  # last 20 messages
+            role = msg.get("role")
+            content = msg.get("content")
+            if role in ("boss", "H.A.W.K.(answerer)"):
+                hist.append({
+                    "role": role,
+                    "content": content
+                })
+        return hist
+
 
     def add_message(self, role, content):
         """

@@ -1,6 +1,7 @@
 # hawk.py
-import re, json, faiss, time, ast, pyttsx3, memory.AllTools as tools, memory.knowledge as tk, classify as cl
+import re, json, faiss, time, ast, pyttsx3, memory.AllTools as tools, memory.knowledge as tk, classify as cl, memory.stages as st, random
 from llama_cpp import Llama
+from fastapi import WebSocket
 from sentence_transformers import SentenceTransformer
 from datetime import date
 
@@ -20,6 +21,25 @@ def speak(text, rate=160, voice_index=2) -> None:
     engine.say(text)
     engine.runAndWait()
 
+async def emit_ws(websocket: WebSocket, event: dict):
+    await websocket.send_text(
+        json.dumps(event, ensure_ascii=False)
+    )
+
+def random_stages(stage_num):
+    if stage_num == 1:
+        return random.choice(st.stage_1)
+    elif stage_num == 2:
+        return random.choice(st.stage_2)
+    elif stage_num == 3:
+        return random.choice(st.stage_3)
+    elif stage_num == 4:
+        return random.choice(st.stage_4)
+    elif stage_num == 5:
+        return random.choice(st.stage_5)
+    else:
+        return ""
+
 # model path initialization
 model_path = "brain\\models\\Mistral-7B-Instruct-v0.3-Q8_0.gguf"
 model_path2 = "brain\\models\\Llama-3.2-3B-Instruct-Q8_0.gguf"
@@ -34,13 +54,11 @@ with open("prompt/format.txt", "r", encoding="utf-8") as f:
 # 1. Load embedder
 embedder = SentenceTransformer("all-MiniLM-L6-v2")
 classify_data = []
-
 # 2. Encode tools
 embeddings = embedder.encode(tk.tools)
 embeddings2 = embedder.encode(tk.boss_prefs)
 app_embed = embedder.encode(tk.app_info)
 info_embed = embedder.encode(tk.info)
-
 # 3. Setup FAISS index
 dimension = embeddings.shape[1]
 tools_index = faiss.IndexFlatL2(dimension)
@@ -51,7 +69,6 @@ app_index.add(app_embed)
 
 info_index = faiss.IndexFlatL2(dimension)
 info_index.add(info_embed)
-
 # 4. Encode boss prefs and add to the same index
 def relevant_apps(user_input, k=5) -> list[str]:
     query_emb = embedder.encode([user_input])
@@ -80,7 +97,6 @@ def retrieve_info(query, k=3) -> list[str]:
     if len(I) == 0 or len(I[0]) == 0:
         return []  # or return ["No relevant info found"]
     return [tk.info[i] for i in I[0] if i < len(tk.info)]  # extra safety
-
 
 # === TOOL INITIALIZATION ===
 memtool = tools.MemoryManager()
@@ -235,8 +251,6 @@ def parse_tool_entities(ans: str) -> tuple[str, dict]:
 
     return tool, entities
 
-    
-
 chat_history_for_understander = []
 
 def build_context_prompt_understander(history, current_input, tools_context, location, usable_apps) -> str:
@@ -246,7 +260,6 @@ def build_context_prompt_understander(history, current_input, tools_context, loc
         prompt += f"{role}: {msg['content']}\n"
     prompt += f"Boss: {current_input}\nH.A.W.K.(understander):"
     return prompt
-
 
 # === UNDERSTANDING ENGINE ===
 def understanding_engine(prompt, tools_context, location, usable_apps) -> str:
@@ -306,17 +319,19 @@ def classify_dataset_build(input_prompt, content) -> None:
         with open("memory/classify.json", "w", encoding="utf-8") as f:
             json.dump(classify_data, f, ensure_ascii=False, indent=4)
 
-
 # === MAIN LOGIC ===
 chat_history_for_answerer = []
 
-def stream_hawk(input_prompt: str, location: str):
+async def stream_hawk(websocket: WebSocket, input_prompt: str, location: str):
+    await emit_ws(websocket, {"version": "1", "type": "stage", "payload":{"stage": random_stages(1)}})
     conclusion = "none"
     tool, entities = None, {}
     input_prompt = input_prompt.strip()
-    # classify_eval("boss", input_prompt)
     memtool.add_message("boss", input_prompt)
+    memtool.save_memory()
     classify_input = cl.classify_input(input_prompt)
+    if classify_input == "tool-use":
+        await emit_ws(websocket, {"version": "1", "type": "stage", "payload":{"stage": random_stages(2)}})
     classify_dataset_build(input_prompt, classify_input)
     print(f"Classified Input: {classify_input}")
     relevant_info = retrieve_info(input_prompt, k=3)
@@ -325,6 +340,7 @@ def stream_hawk(input_prompt: str, location: str):
     print(f"Boss's location: {location}")
     print(f"Relevant Info:\n{info_context}\n")
     if classify_input == "tool-use":
+        await emit_ws(websocket, {"version": "1", "type": "stage", "payload":{"stage": random_stages(3)}})
         append_with_limit(chat_history_for_understander, {"role": "boss", "content": input_prompt})
         relevant_tools = retrieve_tools(input_prompt, k=3)
         tools_context = "\n".join(relevant_tools)
@@ -333,6 +349,7 @@ def stream_hawk(input_prompt: str, location: str):
         print(f"Usable Apps:\n{usable_apps}\n")
         st = time.time()
         ans = understanding_engine(input_prompt, tools_context, location, usable_apps)
+        await emit_ws(websocket, {"version": "1", "type": "stage", "payload":{"stage": random_stages(4)}})
         if __name__ == "__main__":
             et = time_measure(st)
             print(f"Understanding Engine Time Taken: {et:.2f} seconds")
@@ -347,6 +364,8 @@ def stream_hawk(input_prompt: str, location: str):
         ans += f", Conclusion: {conclusion}"
         memtool.add_message("H.A.W.K.(understander)", ans)
     else:
+        await emit_ws(websocket, {"version": "1", "type": "stage", "payload":{"stage": random_stages(5)}})
+        await emit_ws(websocket, {"version": "1", "type": "response_start" , "payload": {}})
         append_with_limit(chat_history_for_answerer, {"role": "boss", "content": input_prompt, "conclusion": conclusion})
 
     response_prompt = build_context_prompt_answerer(chat_history_for_answerer, input_prompt, location, conclusion)
@@ -355,13 +374,16 @@ def stream_hawk(input_prompt: str, location: str):
         content = chunk.get("choices", [{}])[0].get("text", "")
         if content.strip():
             output += content
-            yield content
+            await emit_ws(websocket, {"version": "1", "type": "token", "payload": {"text": content}})
 
     append_with_limit(chat_history_for_answerer, {"role": "H.A.W.K.(answerer)", "content": output})
 
     # speak(output)
     memtool.add_message("H.A.W.K.(answerer)", output)
     memtool.save_memory()
+    
+    await emit_ws(websocket, {"version": "1", "type": "done", "payload": {}})
+
 
 if __name__ == "__main__":
     while True:

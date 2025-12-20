@@ -1,0 +1,5 @@
+stage_1 = ["Looking into it, boss...", "Processing Intent, Boss...", "Understanding Your Request...", "Sure, boss...", "One moment, boss...", "Just a sec", "half a mo"]
+stage_2 = ["Classifying Input as Tool-Use...", "Your request needs a tool...", "Need to use a tool for this, boss...", "This might take a little time boss...", "Wait a bit, boss..."]
+stage_3 = ["Looking for the right tool...", "Looking for the right tool, boss...", "Hmm, lets see...", "Searching for the best tool...", "Finding the right tool for this, boss...", ""]
+stage_4 = ["Using the tool, boss...", "Processing...", "Working on it...", "Getting things ready, boss...", "Almost there, boss..."]
+stage_5 = ["Complete!", "Done!", "All set, boss!", "Here you go, boss!", "Finished, boss!"]

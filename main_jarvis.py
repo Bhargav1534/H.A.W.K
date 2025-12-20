@@ -4,9 +4,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from contextlib import asynccontextmanager
-import hawk, memory.AllTools as tools, os, uvicorn, threading
+import hawk, memory.AllTools as tools, os, uvicorn, threading, json, asyncio   
 from dotenv import load_dotenv
 load_dotenv()
+
+with open("ws_history.json", "r", encoding="utf-8") as file:
+    ws_chat_history = file.read()
 
 security = HTTPBasic()
 USERNAME = os.getenv("API_USERNAME")
@@ -24,6 +27,7 @@ def authenticate(credentials: HTTPBasicCredentials = Depends(security)):
 def get_auth(auth: bool = Depends(authenticate)):
     return auth
 
+memtools = tools.MemoryManager()
 remtools = tools.RemindersManager()
 devtools = tools.DeviceManager()
 basic = tools.BasicTools()
@@ -60,6 +64,14 @@ class NotificationRequest(BaseModel):
     body: str
 # 🧠 Core model streaming (H.A.W.K. responses)
 
+async def heartbeat(websocket: WebSocket):
+    while True:
+        try:
+            await websocket.send_json({"type": "ping"})
+            await asyncio.sleep(20)  # every 20s
+        except:
+            break
+
 @app.post("/save_token")
 async def save_token(request: Request, dependencies=Depends(get_auth)):
     data = await request.json()  # ✅ wait for JSON to be parsed
@@ -86,11 +98,35 @@ async def stream_endpoint(request: Request, dependencies=Depends(get_auth)):
     # hawk.stream_hawk(prompt) must yield strings for StreamingResponse
     return StreamingResponse(hawk.stream_hawk(prompt, location), media_type="text/event-stream")
 
+@app.websocket("/hawk")
+async def hawk_ws(websocket: WebSocket):
+    await websocket.accept()
+    hb_task = asyncio.create_task(heartbeat(websocket))
+    try:
+        data = await websocket.receive_json()
+        prompt = data.get("prompt", "")
+        location = data.get("location", "")
+        
+        # ✅ stream_hawk sends directly to websocket
+        await hawk.stream_hawk(websocket, prompt, location)
+    except WebSocketDisconnect:
+        pass
+    finally:
+        hb_task.cancel()
+
+@app.get("/history")
+async def get_history(dependencies=Depends(get_auth)):
+    history = memtools.history()
+    return history
+
 @app.post("/get_location")
 async def get_location(request: Request, dependencies=Depends(get_auth)):
     data = await request.json()
     location = data.get("location", "")
-    print(f"📥 Location received: {location}")
+    if location == "":
+        print("⚠️ No location provided.")
+    else:
+        print(f"📥 Location received: {location}")
     return {"location": location}
 
 @app.post("/get_reminders")
@@ -113,13 +149,12 @@ async def new_device(request: Request, dependencies=Depends(get_auth)):
 @app.post("/activity")
 async def get_activity(request: Request, dependencies=Depends(get_auth)):
     data = await request.json()
-    # url, dom, highlighted_text = data.get("url", ""), data.get("dom", ""), data.get("highlighted_text", "")
-    # print(f"📥 Activity received: URL={url}, DOM={dom}, Highlighted Text={highlighted_text}")
-    # return {"url": url, "dom": dom, "highlighted_text": highlighted_text}
+    print("source of data:", data.get("source", "unknown"))
     print(f"📥 Activity received: {data}")
     return data
 
 active_connections = []
+chat = []
 
 async def broadcast(message: dict):
     for connection in active_connections:
@@ -127,21 +162,30 @@ async def broadcast(message: dict):
         await connection.send_json(message)
 
 @app.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket):
+async def websocket_endpoint(websocket: WebSocket, dependencies=Depends(get_auth)):
     await websocket.accept()
     active_connections.append(websocket)
     print(f"📡 New WebSocket connection established.\n {active_connections}")
-
     try:
         while True:
             data = await websocket.receive_json()
+            chat.append(data)
+            with open("ws_history.json", "w", encoding="utf-8") as file:
+                json.dump(chat, file, ensure_ascii=False, indent=4)
             print("📥 Received:", data)
             await broadcast(data)
+
     except WebSocketDisconnect:
         active_connections.remove(websocket)
     except Exception:
         # Handles "ping/pong timeout"
         active_connections.remove(websocket)
+
+@app.get("/ws/history")
+async def websocket_history_endpoint(dependencies=Depends(get_auth)):
+    with open("ws_history.json", "r", encoding="utf-8") as file:
+        history = json.load(file)
+    return history
 
 # ✅ 4. Run the app with proper host
 if __name__ == "__main__":

@@ -40,35 +40,6 @@ def send_push_notification(token: str, title: str, body: str):
 
 send_push_notification(fcm_token, "H.A.W.K. Alert", "\nThis is a test notification from FastAPI!\n\n")
 
-# import os, subprocess, pyautogui
-
-# def launch_app(app_path):
-#     try:
-#         os.startfile(app_path)
-#         print("Launched with os.startfile")
-#     except Exception as e:
-#         try:
-#             os.system(f"start \"{app_path}\"")
-#             print("Launched with os.system")
-#         except Exception as e:
-#             try:
-#                 subprocess.Popen([app_path])
-#                 print("Launched with subprocess.Popen")
-#             except Exception as e:
-#                 try:
-#                     pyautogui.hotkey('win', 's')
-#                     pyautogui.write(app_path)
-#                     pyautogui.press('enter')
-#                     print("Launched with pyautogui")
-#                 except Exception as e:
-#                     print(f"Failed to launch application: {e}")
-
-# launch_app("opera.exe")
-# pyautogui.hotkey('win', 's')
-# pyautogui.write("opera")
-# pyautogui.press('enter')
-# print("Launched with pyautogui")
-
 # from llama_cpp import Llama, time
 
 # model_path = "C:\\Users\\chenj\\.lmstudio\\models\\mradermacher\\mistral_28B_instruct_v0.2-GGUF\\mistral_28B_instruct_v0.2.Q6_K.gguf"
