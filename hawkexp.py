@@ -63,16 +63,6 @@ def retrieve_tools(user_input, k=3) -> list[str]:
     D, I = tools_index.search(query_emb, k)
     return [tk.tools[i] for i in I[0]]
 
-# def retrieve_prefs(user_input, k=3) -> list[str]:
-#     query_emb = embedder.encode([user_input])
-#     D, I = index.search(query_emb, k)
-#     return [tk.boss_prefs[i] for i in I[0]]
-
-# def retrieve_self_info(user_input, k=3) -> list[str]:
-#     query_emb = embedder.encode([user_input])
-#     D, I = index.search(query_emb, k)
-#     return [tk.self_info[i] for i in I[0]]
-
 def retrieve_info(query, k=3) -> list[str]:
     query_emb = embedder.encode([query])  # your existing search
     D, I = info_index.search(query_emb, k)
@@ -114,24 +104,6 @@ def execute_action(tool, entities) -> str:
     if tool == "OpenApplication":
         print(f"Opening application at path: {entities.get('app_path', '')}")
         conclusion = basic.open_app(entities.get("app_path", ""))
-
-    # elif tool == "AddTodoList":
-    #     task = entities.get("task", "")
-    #     loc = entities.get("location", {})
-    #     conclusion = todo.add_todo(task, loc)
-
-    # elif tool == "RemoveTodoList":
-    #     task = entities.get("task", "")
-    #     conclusion = todo.remove_todo(task)
-
-    # elif tool == "ClearTodoList":
-    #     conclusion = todo.clear_todos()
-
-    # elif tool == "CheckTodoList":
-    #     conclusion = todo.check_todo(entities.get("task", ""))
-
-    # elif tool == "ListTodoList":
-    #     conclusion = todo.list_todos()
 
     elif tool == "AddReminder":
         reminder = entities.get("reminder", "")

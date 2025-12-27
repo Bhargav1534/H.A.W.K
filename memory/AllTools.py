@@ -1,5 +1,5 @@
 # AllTools.py
-import pyautogui as pag, time, os, json, glob, subprocess, sys, sqlite3, psutil, dateparser, threading, wikipediaapi, firebase_admin, tkinter as tk, requests
+import pyautogui as pag, time, os, json, glob, subprocess, sys, sqlite3, psutil, dateparser, threading, wikipediaapi, firebase_admin, tkinter as tk, requests, math
 from datetime import datetime, timedelta, date
 from tkcalendar import Calendar
 from ctypes import cast, POINTER
@@ -118,7 +118,85 @@ class BasicTools:
         self.app_name = None
         self.path = None
         self.file_name = None
-    
+
+    def update_activity_json(self, key, new_activity, path="memory/knowledge.json"):
+        try:
+            with open(path, "r") as file:
+                data = json.load(file)
+        except FileNotFoundError:
+            data = {"phone_activity": [], "browser_activity": [], "pc_activity": []}
+            print(f"⚠️ Activity file not found at {path}. A new one will be created.")
+
+        data = data["activities"]
+        # Ensure key exists and is a list
+        if key not in data or not isinstance(data[key], list):
+            data[key] = []
+
+        # Add new activity
+        data[key].append(new_activity)
+
+        # Write back
+        with open(path, "w") as file:
+            json.dump({"activities": data}, file, indent=4)
+
+        print(f"✔ Added activity under '{key}' in {path}")
+
+    def haversine_distance_m(lat1, lon1, lat2, lon2):
+        R = 6371000  # Earth radius in meters
+
+        lat1, lon1, lat2, lon2 = map(math.radians, [lat1, lon1, lat2, lon2])
+
+        dlat = lat2 - lat1
+        dlon = lon2 - lon1
+
+        a = math.sin(dlat / 2) ** 2 + \
+            math.cos(lat1) * math.cos(lat2) * math.sin(dlon / 2) ** 2
+
+        c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
+        return R * c
+
+    def update_location_json(self, latitude, longitude, path="memory/knowledge.json", min_distance_m=500):
+        try:
+            with open(path, "r") as file:
+                data = json.load(file)
+        except FileNotFoundError:
+            data = {}
+            print(f"⚠️ Location file not found at {path}. A new one will be created.")
+
+        # Ensure 'locations' key exists
+        if "locations" not in data or not isinstance(data["locations"], list):
+            data["locations"] = []
+
+        locations = data["locations"]
+
+        # 📏 Distance check from last saved point
+        if locations:
+            last_location = locations[-1]
+
+            distance = self.haversine_distance_m(
+                last_location["latitude"],
+                last_location["longitude"],
+                latitude,
+                longitude
+            )
+
+            if distance < min_distance_m:
+                print(f"📍 Skipped location ({distance:.1f} m away)")
+                return  # ❌ Do not save
+
+        # ✅ Save location
+        locations.append({
+            "latitude": latitude,
+            "longitude": longitude,
+            "timestamp": int(time.time() * 1000)
+        })
+
+        with open(path, "w") as file:
+            json.dump(data, file, indent=4)
+
+        print(f"✔ Saved location (≥ {min_distance_m} m)")
+
     def update_env_value(self, key, new_value, path=env_path):
         # Read file
         try:
@@ -144,9 +222,6 @@ class BasicTools:
 
         print(f"✔ Updated {key} as \"{new_value}\" in {path}")
 
-
-
-
     def open_app(self, path): #needs an update !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         try:
             # 'runas' tells Windows to run as administrator
@@ -155,8 +230,6 @@ class BasicTools:
             print(f"Failed to open {path}: {e}")
         except Exception as e:
             print(f"Error: {e}")
-
-
 
     def open_app_with_path(self, path):
         if os.path.exists(path):
@@ -168,7 +241,6 @@ class BasicTools:
         else:
             print(f"Path does not exist: {path}")
 
-    
     def set_volume(self, level):  # level between 0.0 and 1.0
         try:
             devices = AudioUtilities.GetSpeakers()
@@ -920,4 +992,4 @@ class DeviceManager:
             print(f"Error removing device: {e}")
 
 if __name__ == "__main__":
-    pass
+    BasicTools().update_activity_json("browser_activity", "enabled")

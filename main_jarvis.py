@@ -11,6 +11,9 @@ load_dotenv()
 with open("ws_history.json", "r", encoding="utf-8") as file:
     ws_chat_history = file.read()
 
+with open("activity.json", "r", encoding="utf-8") as file:
+    activity_history = file.read()
+
 security = HTTPBasic()
 USERNAME = os.getenv("API_USERNAME")
 PASSWORD = os.getenv("API_PASSWORD")
@@ -127,6 +130,8 @@ async def get_location(request: Request, dependencies=Depends(get_auth)):
         print("⚠️ No location provided.")
     else:
         print(f"📥 Location received: {location}")
+        basic.update_location_json(location)
+
     return {"location": location}
 
 @app.post("/get_reminders")
@@ -146,9 +151,30 @@ async def new_device(request: Request, dependencies=Depends(get_auth)):
     print(f"📥 Saved device info: {device_info}")
     return {"success": True, "message": "Device info saved successfully"}
 
+
+# source: "browser-extension",
+# url: location.href,
+# title: document.title,
+# mode: extracted.mode,
+# text: extracted.text?.slice(0, MAX_CHARS) || "",
+# headings: extracted.headings || [],
+# paragraphs: extracted.paragraphs || [],
+# links: extracted.links || [],
+# // html: extracted.html || "",
+# excerpt: extracted.excerpt || "",
+# highlight: extra.highlight || "",
+# timestamp: Date.now()
 @app.post("/activity")
 async def get_activity(request: Request, dependencies=Depends(get_auth)):
     data = await request.json()
+    source = data.get("source", "")
+    if source == "browser_extension":
+        basic.update_activity_json("browser_activity", data)
+    elif source == "mobile_app":
+        basic.update_activity_json("phone_activity", data)
+    elif source == "pc_app":
+        basic.update_activity_json("pc_activity", data)
+        
     print("source of data:", data.get("source", "unknown"))
     print(f"📥 Activity received: {data}")
     return data
@@ -168,7 +194,7 @@ async def websocket_endpoint(websocket: WebSocket, dependencies=Depends(get_auth
     print(f"📡 New WebSocket connection established.\n {active_connections}")
     try:
         while True:
-            data = await websocket.receive_json()
+            data = await websocket.receive_json()  
             chat.append(data)
             with open("ws_history.json", "w", encoding="utf-8") as file:
                 json.dump(chat, file, ensure_ascii=False, indent=4)
