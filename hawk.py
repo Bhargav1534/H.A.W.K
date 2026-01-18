@@ -395,7 +395,7 @@ if __name__ == "__main__":
                 print("\n👋 Goodbye Boss.")
                 speak("Goodbye Boss.")
                 break
-            for token in stream_hawk(input_prompt, location):
+            for token in stream_hawk(input_prompt=input_prompt, location=location):
                 print(token, end="", flush=True)
             elapsed_time = time.time() - start_time
             print(f"\n⏱️ Elapsed Time: {elapsed_time:.2f} seconds")

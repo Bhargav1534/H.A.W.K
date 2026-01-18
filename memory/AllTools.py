@@ -1,6 +1,6 @@
 # AllTools.py
-import pyautogui as pag, time, os, json, glob, subprocess, sys, sqlite3, psutil, dateparser, threading, wikipediaapi, firebase_admin, tkinter as tk, requests, math
-from datetime import datetime, timedelta, date
+import pyautogui as pag, time, os, json, platform, glob, subprocess, sys, sqlite3, psutil, dateparser, threading, wikipediaapi, firebase_admin, tkinter as tk, requests, math
+from datetime import timedelta, date, datetime
 from tkcalendar import Calendar
 from ctypes import cast, POINTER
 from comtypes import CLSCTX_ALL
@@ -347,7 +347,8 @@ class MemoryManager:
             if role in ("boss", "H.A.W.K.(answerer)"):
                 hist.append({
                     "role": role,
-                    "content": content
+                    "content": content,
+                    "timestamp": time.time()
                 })
         return hist
 
@@ -356,7 +357,7 @@ class MemoryManager:
         """
         Add a new message to the history and conversation window.
         """
-        message = {"role": role, "content": content}
+        message = {"role": role, "content": content, "timestamp": time.time()}
         self.full_history.append(message)
         self.conversation_window.append(message)
 
@@ -881,7 +882,7 @@ class RemindersManager:
 
     def trigger(self):
         try:
-            with open(os.environ["FCM_TOKEN_PATH"]) as f:
+            with open(os.getenv("FCM_TOKEN")) as f:
                 fcm_token = f.read().strip()
         except FileNotFoundError:
             print("⚠ fcm_token.txt not found.")
@@ -967,7 +968,8 @@ class InfoManager():
         else:
             return json.dumps({"articles": [], "message": "No articles found."}, indent=4)
 
-class DeviceManager:
+class DeviceManager():
+
     def __init__(self):
         self.db_path = "memory/Reminders.db"
 
@@ -991,5 +993,107 @@ class DeviceManager:
         except sqlite3.Error as e:
             print(f"Error removing device: {e}")
 
+class HawkScheduler():
+    def __init__(self):
+        self.os_name = os.name  # 'nt' or 'posix'
+        self.system = platform.system().lower()
+
+        if self.os_name == "nt":
+            self.backend = "windows"
+        elif self.system == "linux":
+            self.backend = "linux"
+        else:
+            raise RuntimeError("Unsupported OS")
+
+    # ---------- PUBLIC API ----------
+    def schedule_once(self, name, run_at, command):
+        """
+        name: task name (string)
+        run_at: datetime object
+        command: full command to execute
+        """
+        if self.backend == "windows":
+            self._windows_once(name, run_at, command)
+        else:
+            self._linux_once(run_at, command)
+
+    def schedule_daily(self, name, time_str, command):
+        """
+        time_str: 'HH:MM'
+        """
+        if self.backend == "windows":
+            self._windows_daily(name, time_str, command)
+        else:
+            self._linux_daily(time_str, command)
+
+    def delete(self, name):
+        if self.backend == "windows":
+            subprocess.run(
+                f'schtasks /delete /tn "{name}" /f',
+                shell=True
+            )
+        else:
+            self._linux_delete(command_hint=name)
+
+    # ---------- WINDOWS ----------
+    def _windows_once(self, name, run_at, command):
+        date = run_at.strftime("%m/%d/%Y")
+        time = run_at.strftime("%H:%M")
+
+        cmd = (
+            f'schtasks /create /f /sc once '
+            f'/sd {date} /st {time} '
+            f'/tn "{name}" '
+            f'/tr "{command}"'
+        )
+        subprocess.run(cmd, shell=True)
+
+    def _windows_daily(self, name, time_str, command):
+        cmd = (
+            f'schtasks /create /f /sc daily '
+            f'/st {time_str} '
+            f'/tn "{name}" '
+            f'/tr "{command}"'
+        )
+        subprocess.run(cmd, shell=True)
+
+    # ---------- LINUX (CRON) ----------
+    def _linux_once(self, run_at, command):
+        cron_time = run_at.strftime("%M %H %d %m *")
+        self._append_cron(f"{cron_time} {command}")
+
+    def _linux_daily(self, time_str, command):
+        hour, minute = time_str.split(":")
+        self._append_cron(f"{minute} {hour} * * * {command}")
+
+    def _append_cron(self, line):
+        existing = subprocess.run(
+            ["crontab", "-l"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            text=True
+        ).stdout
+
+        new_cron = existing + "\n" + line + "\n"
+
+        proc = subprocess.Popen(["crontab", "-"], stdin=subprocess.PIPE, text=True)
+        proc.communicate(new_cron)
+
+    def _linux_delete(self, command_hint):
+        existing = subprocess.run(
+            ["crontab", "-l"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            text=True
+        ).stdout
+
+        filtered = "\n".join(
+            line for line in existing.splitlines()
+            if command_hint not in line
+        )
+
+        proc = subprocess.Popen(["crontab", "-"], stdin=subprocess.PIPE, text=True)
+        proc.communicate(filtered)
+
 if __name__ == "__main__":
-    BasicTools().update_activity_json("browser_activity", "enabled")
+    RemindersManager().add_reminder("", "")

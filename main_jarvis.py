@@ -11,8 +11,12 @@ load_dotenv()
 with open("ws_history.json", "r", encoding="utf-8") as file:
     ws_chat_history = file.read()
 
-with open("activity.json", "r", encoding="utf-8") as file:
-    activity_history = file.read()
+def write_to_server_activity(data: str):
+    with open("server_activity.json", "a", encoding="utf-8") as file:
+        file.write(data + "\n")
+
+# with open("knowledge.json", "r", encoding="utf-8") as file:
+#     activity_history = file.read()
 
 security = HTTPBasic()
 USERNAME = os.getenv("API_USERNAME")
@@ -86,6 +90,7 @@ async def save_token(request: Request, dependencies=Depends(get_auth)):
     basic.update_env_value("FCM_TOKEN", fcm_token)
 
     print(f"📥 Saved FCM token: {fcm_token}")
+    write_to_server_activity(f"📥 Saved FCM token: {fcm_token}")
     return {"success": True, "message": "Token saved successfully"}
 
 # ✅ 3. POST endpoint that returns streaming response
@@ -95,11 +100,7 @@ async def head_endpoint(dependencies=Depends(get_auth)):
 
 @app.post("/hawk")
 async def stream_endpoint(request: Request, dependencies=Depends(get_auth)):
-    data = await request.json()
-    prompt = data.get("prompt", "") or data.get("message", "")
-    location = data.get("location", "")
-    # hawk.stream_hawk(prompt) must yield strings for StreamingResponse
-    return StreamingResponse(hawk.stream_hawk(prompt, location), media_type="text/event-stream")
+    return StreamingResponse("online")
 
 @app.websocket("/hawk")
 async def hawk_ws(websocket: WebSocket):
@@ -109,7 +110,7 @@ async def hawk_ws(websocket: WebSocket):
         data = await websocket.receive_json()
         prompt = data.get("prompt", "")
         location = data.get("location", "")
-        
+        write_to_server_activity(f"📥 Prompt received via WebSocket: {prompt}")
         # ✅ stream_hawk sends directly to websocket
         await hawk.stream_hawk(websocket, prompt, location)
     except WebSocketDisconnect:
@@ -131,6 +132,7 @@ async def get_location(request: Request, dependencies=Depends(get_auth)):
     else:
         print(f"📥 Location received: {location}")
         basic.update_location_json(location)
+        write_to_server_activity(f"📥 Location received: {location}")
 
     return {"location": location}
 
@@ -149,6 +151,7 @@ async def new_device(request: Request, dependencies=Depends(get_auth)):
     device_info = data.get("device_info", "")
     devtools.add_device(device_info)
     print(f"📥 Saved device info: {device_info}")
+    write_to_server_activity(f"📥 Saved device info: {device_info}")
     return {"success": True, "message": "Device info saved successfully"}
 
 
@@ -164,6 +167,7 @@ async def new_device(request: Request, dependencies=Depends(get_auth)):
 # excerpt: extracted.excerpt || "",
 # highlight: extra.highlight || "",
 # timestamp: Date.now()
+
 @app.post("/activity")
 async def get_activity(request: Request, dependencies=Depends(get_auth)):
     data = await request.json()
@@ -177,6 +181,7 @@ async def get_activity(request: Request, dependencies=Depends(get_auth)):
         
     print("source of data:", data.get("source", "unknown"))
     print(f"📥 Activity received: {data}")
+    write_to_server_activity(f"📥 Activity received: {data}")
     return data
 
 active_connections = []

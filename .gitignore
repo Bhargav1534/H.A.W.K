@@ -13,6 +13,7 @@ firebase_cpp_sdk_13.0.0/*
 start_ngrok.py
 ngrok_url.txt
 classify.json
+server_activity.json
 conversation_window.json
 todos.json
 installed_apps.json
