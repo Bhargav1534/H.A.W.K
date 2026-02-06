@@ -382,8 +382,6 @@ class MemoryManager:
 
         return separator.join(prompt_parts)
 
-
-
     def get_full_history(self):
         return self.full_history
 

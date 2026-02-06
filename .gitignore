@@ -25,6 +25,8 @@ fcm_token.txt
 agent.py
 situational/
 situational/*
+test_screenshot/
+test_screenshot/*
 
 
 # (Optional) Any large model files

@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from contextlib import asynccontextmanager
-import hawk, memory.AllTools as tools, os, uvicorn, threading, json, asyncio   
+import hawk, memory.AllTools as tools, os, uvicorn, threading, json, asyncio, time
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -12,7 +12,7 @@ with open("ws_history.json", "r", encoding="utf-8") as file:
     ws_chat_history = file.read()
 
 def write_to_server_activity(data: str):
-    with open("server_activity.json", "a", encoding="utf-8") as file:
+    with open("server_activity.txt", "a", encoding="utf-8") as file:
         file.write(data + "\n")
 
 # with open("knowledge.json", "r", encoding="utf-8") as file:
@@ -81,6 +81,7 @@ async def heartbeat(websocket: WebSocket):
 
 @app.post("/save_token")
 async def save_token(request: Request, dependencies=Depends(get_auth)):
+    print(time.time())
     data = await request.json()  # ✅ wait for JSON to be parsed
     fcm_token = data.get("token", "")
 
@@ -96,14 +97,17 @@ async def save_token(request: Request, dependencies=Depends(get_auth)):
 # ✅ 3. POST endpoint that returns streaming response
 @app.head("/hawk")
 async def head_endpoint(dependencies=Depends(get_auth)):
+    print(time.time())
     return {}
 
 @app.post("/hawk")
 async def stream_endpoint(request: Request, dependencies=Depends(get_auth)):
+    print(time.time())
     return StreamingResponse("online")
 
 @app.websocket("/hawk")
 async def hawk_ws(websocket: WebSocket):
+    print(time.time())
     await websocket.accept()
     hb_task = asyncio.create_task(heartbeat(websocket))
     try:
@@ -153,7 +157,6 @@ async def new_device(request: Request, dependencies=Depends(get_auth)):
     print(f"📥 Saved device info: {device_info}")
     write_to_server_activity(f"📥 Saved device info: {device_info}")
     return {"success": True, "message": "Device info saved successfully"}
-
 
 # source: "browser-extension",
 # url: location.href,
