@@ -15,12 +15,10 @@ def write_to_server_activity(data: str):
     with open("server_activity.txt", "a", encoding="utf-8") as file:
         file.write(data + "\n")
 
-# with open("knowledge.json", "r", encoding="utf-8") as file:
-#     activity_history = file.read()
-
 security = HTTPBasic()
 USERNAME = os.getenv("API_USERNAME")
 PASSWORD = os.getenv("API_PASSWORD")
+KNOWLEDGE_FILE = "memory/knowledge.json"
 
 def authenticate(credentials: HTTPBasicCredentials = Depends(security)):
     if credentials.username != USERNAME or credentials.password != PASSWORD:
@@ -148,15 +146,48 @@ async def get_reminders(request: Request, dependencies=Depends(get_auth)):
     except Exception as e:
         print("🔥 Server Error:", str(e))
         return JSONResponse(status_code=500, content={"error": str(e)})
-    
-@app.post("/new_device")
-async def new_device(request: Request, dependencies=Depends(get_auth)):
+
+@app.post("/device_info")
+async def device_info(request: Request, dependencies=Depends(get_auth)):
     data = await request.json()
-    device_info = data.get("device_info", "")
-    devtools.add_device(device_info)
-    print(f"📥 Saved device info: {device_info}")
-    write_to_server_activity(f"📥 Saved device info: {device_info}")
-    return {"success": True, "message": "Device info saved successfully"}
+    print(f"📥 Raw data received: {data}")
+
+    device = data.get("device_info")
+    if not device:
+        print("⚠️ device_info field is missing in the request.")
+        return {"error": "device_info missing"}
+
+    # ✅ fingerprint is directly inside device_info
+    device_id = device.get("fingerprint")
+    if not device_id:
+        device_id = f"{device.get('manufacturer','unknown')}_{device.get('model','unknown')}"
+
+    print(f"📥 Device ID: {device_id}")
+
+    with open(KNOWLEDGE_FILE, "r", encoding="utf-8") as file:
+        knowledge = json.load(file)
+
+    # ✅ Ensure devices_info is a dict
+    if "devices_info" not in knowledge or not isinstance(knowledge["devices_info"], dict):
+        knowledge["devices_info"] = {}
+
+    # ✅ Store / overwrite device entry
+    knowledge["devices_info"][device_id] = {
+        "platform": "android",
+        "type": "phone",
+        "last_seen": time.time(),
+        "raw": device   # store raw for now (can normalize later)
+    }
+
+    with open(KNOWLEDGE_FILE, "w", encoding="utf-8") as file:
+        json.dump(knowledge, file, indent=2, ensure_ascii=False)
+
+    print(f"📥 Device registered: {device_id}")
+
+    return {
+        "status": "device info stored",
+        "device_id": device_id
+    }
 
 # source: "browser-extension",
 # url: location.href,

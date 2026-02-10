@@ -1,0 +1,53 @@
+{
+  "devices_info": {
+    "google/sdk_gphone64_x86_64/emu64xa:16/BP22.250325.006/13344233:user/release-keys": {
+      "type": "phone",
+      "platform": "android",
+      "manufacturer": "Google",
+      "brand": "google",
+      "model": "sdk_gphone64_x86_64",
+      "device": "emu64xa",
+      "is_emulator": true,
+      "hardware": "ranchu",
+      "bootloader": "unknown",
+      "build": {
+        "id": "BP22.250325.006",
+        "display": "BP22.250325.006",
+        "fingerprint": "google/sdk_gphone64_x86_64/emu64xa:16/BP22.250325.006/13344233:user/release-keys",
+        "tags": "release-keys",
+        "host": "ea6e0873909a"
+      },
+      "android": {
+        "version": "16",
+        "sdk": 36,
+        "security_patch": "2025-04-05",
+        "codename": "REL",
+        "incremental": "13344233",
+        "base_os": ""
+      },
+      "architecture": {
+        "supported_abis": ["x86_64", "arm64-v8a"],
+        "supported_32_bit": [],
+        "supported_64_bit": ["x86_64", "arm64-v8a"]
+      },
+      "capabilities": {
+        "telephony": true,
+        "camera": true,
+        "fingerprint": true,
+        "bluetooth": true,
+        "wifi": true,
+        "gps": true,
+        "nfc": false,
+        "uwb": true
+      },
+      "system_features": [
+        "android.hardware.camera",
+        "android.hardware.location.gps",
+        "android.hardware.bluetooth",
+        "android.hardware.telephony",
+        "android.hardware.fingerprint"
+      ],
+      "last_seen": 1770737896.5267873
+    }
+  }
+}

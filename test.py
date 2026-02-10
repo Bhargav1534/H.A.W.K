@@ -32,5 +32,29 @@
 # print("Response:\n", output["choices"][0]["text"])
 # print(f"Time taken: {end - start:.2f} seconds")
 
-import time
-print(time.time())
+# import requests
+
+# h = requests.get("https://video.google.com/timedtext?type=list&v=bz67tNeE_s4").text
+# print(h)
+
+import requests
+import xml.etree.ElementTree as ET
+
+video_id = "bE4aTaU_aLo"
+url = f"https://video.google.com/timedtext?lang=en&v={video_id}"
+
+res = requests.get(url)
+
+root = ET.fromstring(res.text)
+
+print("Text elements found:", root.findall("text"))
+
+captions = []
+try:
+    for text in root.findall("text"):
+        captions.append(text.text)
+
+    final_text = " ".join(captions)
+except ET.ParseError:
+    final_text = "No captions found or unable to parse captions."
+print(final_text)

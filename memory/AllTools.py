@@ -120,12 +120,9 @@ class BasicTools:
         self.file_name = None
 
     def update_activity_json(self, key, new_activity, path="memory/knowledge.json"):
-        try:
-            with open(path, "r") as file:
-                data = json.load(file)
-        except FileNotFoundError:
-            data = {"phone_activity": [], "browser_activity": [], "pc_activity": []}
-            print(f"⚠️ Activity file not found at {path}. A new one will be created.")
+        with open(path, "r") as file:
+            data = json.load(file)
+
 
         data = data["activities"]
         # Ensure key exists and is a list

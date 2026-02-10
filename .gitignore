@@ -20,6 +20,7 @@ installed_apps.json
 full_history.json
 startmenu_executables.json
 memory/knowledge.json
+some.html
 memory/knowledge.py
 fcm_token.txt
 agent.py
@@ -27,7 +28,7 @@ situational/
 situational/*
 test_screenshots/
 test_screenshots/*
-
+server_activity.txt
 
 # (Optional) Any large model files
 *.gguf
