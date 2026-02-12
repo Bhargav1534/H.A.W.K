@@ -19,6 +19,66 @@ security = HTTPBasic()
 USERNAME = os.getenv("API_USERNAME")
 PASSWORD = os.getenv("API_PASSWORD")
 KNOWLEDGE_FILE = "memory/knowledge.json"
+UI_STATE = {
+    "main": {
+        "textColor": "#FFFFFF",
+        "profileIconColor": "#05F8D8",
+        "profileBackgroundColor": "#000000",
+        "inputHintColor": "#FFFFFFB3",
+        "micButtonColor": "#64FFDA",
+        "inputBarColor": "#0F1F33",
+        "hintText": "Let's go, Boss",
+        "chatBubbleColorUser": "#16C9B1",
+        "chatBubbleColorHawk": "#0F1F33",
+        "logoBoxShadowColor": "#000000",
+        "logoBoxShadowBlurRadius": "1200",
+        "logoBoxShadowSpreadRadius": "100",
+        "sendButtonColor": "#FFFFFF",
+        "backgroundColor": "#65789B",
+    },
+    "assistant": {
+        "textColor": "#FFFFFF",
+        "micButtonColor": "#64FFDA",
+        "inputBarColor": "#0F1F33",
+        "hintText": "Let's go, Boss",
+        "inputHintColor": "#FFFFFFB3",
+        "backgroundColor": "#65789B",
+    }
+}
+
+class UIConnectionManager:
+    def __init__(self):
+        self.connections: set[WebSocket] = set()
+
+    async def connect(self, ws: WebSocket):
+        await ws.accept()
+        self.connections.add(ws)
+
+    def disconnect(self, ws: WebSocket):
+        self.connections.discard(ws)
+
+    async def broadcast(self, message: dict):
+        for ws in list(self.connections):
+            try:
+                await ws.send_json(message)
+            except Exception:
+                self.disconnect(ws)
+
+    async def update_main_ui(self, patch: dict):
+        UI_STATE["main"].update(patch)
+
+        await ui_manager.broadcast({
+            "type": "ui_update",
+            "payload": patch
+        })
+
+    async def update_assistant_ui(self, patch: dict):
+        UI_STATE["assistant"].update(patch)
+
+        await ui_manager.broadcast({
+            "type": "assistant_ui_update",
+            "payload": patch
+        })
 
 def authenticate(credentials: HTTPBasicCredentials = Depends(security)):
     if credentials.username != USERNAME or credentials.password != PASSWORD:
@@ -146,6 +206,32 @@ async def get_reminders(request: Request, dependencies=Depends(get_auth)):
     except Exception as e:
         print("🔥 Server Error:", str(e))
         return JSONResponse(status_code=500, content={"error": str(e)})
+
+ui_manager = UIConnectionManager()
+
+@app.websocket("/ui/stream")
+async def ui_stream(ws: WebSocket):
+    await ui_manager.connect(ws)
+
+    try:
+        # 🔹 Send FULL UI config immediately
+        await ws.send_json({
+            "type": "ui_full",
+            "payload": UI_STATE["main"]
+        })
+
+        await ws.send_json({
+            "type": "assistant_ui_full",
+            "payload": UI_STATE["assistant"]
+        })
+
+        # 🔹 Keep connection alive
+        while True:
+            await ws.receive_text()  # client doesn’t need to send anything
+
+    except WebSocketDisconnect:
+        ui_manager.disconnect(ws)
+
 
 @app.post("/device_info")
 async def device_info(request: Request, dependencies=Depends(get_auth)):

@@ -41,3 +41,4 @@ server_activity.txt
 *.sqbpro
 *.env
 *.spec
+*.whl
