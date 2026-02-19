@@ -42,3 +42,4 @@ server_activity.txt
 *.env
 *.spec
 *.whl
+*.json

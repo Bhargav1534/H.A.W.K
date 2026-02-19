@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from contextlib import asynccontextmanager
+from requests import patch
 import hawk, memory.AllTools as tools, os, uvicorn, threading, json, asyncio, time
 from dotenv import load_dotenv
 load_dotenv()
@@ -13,7 +14,7 @@ with open("ws_history.json", "r", encoding="utf-8") as file:
 
 def write_to_server_activity(data: str):
     with open("server_activity.txt", "a", encoding="utf-8") as file:
-        file.write(data + "\n")
+        file.write(data + "   ⏱️ Time: " + str(time.time()) + "\n")
 
 security = HTTPBasic()
 USERNAME = os.getenv("API_USERNAME")
@@ -21,48 +22,45 @@ PASSWORD = os.getenv("API_PASSWORD")
 KNOWLEDGE_FILE = "memory/knowledge.json"
 UI_STATE = {
     "main": {
+        "backgroundColor": "#FF5100",
+        "secondaryBackgroundColor": "#4401FD", # needs update
+
         "textColor": "#FFFFFF",
-        "profileIconColor": "#05F8D8",
-        "profileBackgroundColor": "#000000",
+
+        "profileIconColor": "#4401FD",
+        "profileBackgroundColor": "#3F3E3E",
+
         "inputHintColor": "#FFFFFFB3",
-        "micButtonColor": "#64FFDA",
+        "inputOutlineColor": "#FFFFFF", # needs update in assistant too
+        "micButtonColor": "#4401FD",
         "inputBarColor": "#0F1F33",
-        "hintText": "Let's go, Boss",
-        "chatBubbleColorUser": "#16C9B1",
+        "hintText": "Hey, Boss",
+        "sendButtonColor": "#FFFFFF", # remove
+
+        "chatBubbleColorUser": "#B601FD",
         "chatBubbleColorHawk": "#0F1F33",
-        "logoBoxShadowColor": "#000000",
-        "logoBoxShadowBlurRadius": "1200",
-        "logoBoxShadowSpreadRadius": "100",
-        "sendButtonColor": "#FFFFFF",
-        "backgroundColor": "#65789B",
+        "chatBubbleShadowColor": "#000000", # needs update
+        "chatBubbleShadowBlurRadius": 4, # needs update
+
+        "logoBoxShadowColor": "#FFC400",
+        "logoBoxShadowBlurRadius": 1200,
+        "logoBoxShadowSpreadRadius": 100,
     },
     "assistant": {
+        "backgroundColor": "#65789B",
         "textColor": "#FFFFFF",
+
         "micButtonColor": "#64FFDA",
         "inputBarColor": "#0F1F33",
+        "inputOutlineColor": "#FFFFFF",
         "hintText": "Let's go, Boss",
         "inputHintColor": "#FFFFFFB3",
-        "backgroundColor": "#65789B",
     }
 }
 
 class UIConnectionManager:
     def __init__(self):
-        self.connections: set[WebSocket] = set()
-
-    async def connect(self, ws: WebSocket):
-        await ws.accept()
-        self.connections.add(ws)
-
-    def disconnect(self, ws: WebSocket):
-        self.connections.discard(ws)
-
-    async def broadcast(self, message: dict):
-        for ws in list(self.connections):
-            try:
-                await ws.send_json(message)
-            except Exception:
-                self.disconnect(ws)
+        pass
 
     async def update_main_ui(self, patch: dict):
         UI_STATE["main"].update(patch)
@@ -79,6 +77,12 @@ class UIConnectionManager:
             "type": "assistant_ui_update",
             "payload": patch
         })
+
+    async def get_main_ui_state(self):
+        return { "type": "ui_full", "payload": UI_STATE["main"]}
+    
+    async def get_assistant_ui_state(self):
+        return UI_STATE["assistant"]
 
 def authenticate(credentials: HTTPBasicCredentials = Depends(security)):
     if credentials.username != USERNAME or credentials.password != PASSWORD:
@@ -137,6 +141,21 @@ async def heartbeat(websocket: WebSocket):
         except:
             break
 
+ui_manager = UIConnectionManager()
+
+
+@app.get("/ui/main")
+async def ui_stream(dependencies=Depends(get_auth)):
+    state = await ui_manager.get_main_ui_state()
+    write_to_server_activity(f"📥 Main UI state requested: {state}")
+    return state
+
+@app.get("/ui/assistant")
+async def ui_assistant_stream(dependencies=Depends(get_auth)):
+    state = await ui_manager.get_assistant_ui_state()
+    write_to_server_activity(f"📥 Assistant UI state requested: {state}")
+    return state
+
 @app.post("/save_token")
 async def save_token(request: Request, dependencies=Depends(get_auth)):
     print(time.time())
@@ -156,11 +175,13 @@ async def save_token(request: Request, dependencies=Depends(get_auth)):
 @app.head("/hawk")
 async def head_endpoint(dependencies=Depends(get_auth)):
     print(time.time())
+    write_to_server_activity(f"📥 HEAD request received at /hawk")
     return {}
 
 @app.post("/hawk")
 async def stream_endpoint(request: Request, dependencies=Depends(get_auth)):
     print(time.time())
+    write_to_server_activity(f"📥 POST request received at /hawk")
     return StreamingResponse("online")
 
 @app.websocket("/hawk")
@@ -183,11 +204,13 @@ async def hawk_ws(websocket: WebSocket):
 @app.get("/history")
 async def get_history(dependencies=Depends(get_auth)):
     history = memtools.history()
+    write_to_server_activity(f"📥 History requested, {len(history)} entries returned.")
     return history
 
 @app.post("/get_location")
 async def get_location(request: Request, dependencies=Depends(get_auth)):
     data = await request.json()
+    print(f"📥 Raw data received for location: {data}")
     location = data.get("location", "")
     if location == "":
         print("⚠️ No location provided.")
@@ -202,36 +225,11 @@ async def get_location(request: Request, dependencies=Depends(get_auth)):
 async def get_reminders(request: Request, dependencies=Depends(get_auth)):
     try:
         reminders = remtools.get_due_reminders()
+        write_to_server_activity(f"📥 Reminders retrieved: {len(reminders)} reminders")
         return reminders
     except Exception as e:
         print("🔥 Server Error:", str(e))
         return JSONResponse(status_code=500, content={"error": str(e)})
-
-ui_manager = UIConnectionManager()
-
-@app.websocket("/ui/stream")
-async def ui_stream(ws: WebSocket):
-    await ui_manager.connect(ws)
-
-    try:
-        # 🔹 Send FULL UI config immediately
-        await ws.send_json({
-            "type": "ui_full",
-            "payload": UI_STATE["main"]
-        })
-
-        await ws.send_json({
-            "type": "assistant_ui_full",
-            "payload": UI_STATE["assistant"]
-        })
-
-        # 🔹 Keep connection alive
-        while True:
-            await ws.receive_text()  # client doesn’t need to send anything
-
-    except WebSocketDisconnect:
-        ui_manager.disconnect(ws)
-
 
 @app.post("/device_info")
 async def device_info(request: Request, dependencies=Depends(get_auth)):
@@ -269,6 +267,7 @@ async def device_info(request: Request, dependencies=Depends(get_auth)):
         json.dump(knowledge, file, indent=2, ensure_ascii=False)
 
     print(f"📥 Device registered: {device_id}")
+    write_to_server_activity(f"📥 Device registered: {device_id}")
 
     return {
         "status": "device info stored",
