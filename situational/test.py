@@ -44,7 +44,7 @@ import time
 from llama_cpp import Llama
 import os
 
-model_path = "D:\\models\\mistral_28B_instruct_v0.2.Q6_K.gguf"
+model_path = "C:\\Users\\chenj\\Desktop\\codes\\H.A.W.K\\hawk_backend\\brain\\models\\Mistral-7B-Instruct-v0.3-Q8_0.gguf"
 
 model_path = os.path.abspath(model_path)
 
@@ -53,20 +53,45 @@ llm = Llama(
     n_ctx=4096,
     n_threads=8,
     n_batch=1024,
-    verbose=False
+    verbose=False,
+    seed=42
 )
 
 
 def test_speed():
-    prompt = "what is chauffeur?"
+    prompt = """you are a helpful assistant that answers questions based on the following information:
+    - you are a user asking your assistant to generate sentences based on the following information
+    - You are the one is asking so only generate the sentences from your perspective. Do not generate sentences from the assistant's perspective.
+    based on the following information:
+    - Hey, send the project_report.pdf to my phone.
+    - Transfer the latest APK build to my mobile device.
+    - Can you share the resume.docx with my phone?
+    - Push the notes.txt file to my phone over Wi-Fi.
+    - Send that PDF we generated earlier to my phone now.
+    - Upload the updated app APK to my phone and notify me when it’s done.
+    - Share the file directly to my phone’s storage.
+    - Transfer the document to my phone using the fastest available method.
+
+    Now use these sentences as a reference and write a sentence
+    """
     start_time = time.time()
     print(f"time of start: {start_time}")
-    output = llm(prompt, max_tokens=256, stop=["Boss:", "H.A.W.K.(understander):", "\n\n", "}"], temperature=0.5)
+    output = llm(prompt, max_tokens=256, stop=[], temperature=1)
     answer = output['choices'][0]['text'].strip()
     end_time = time.time()
     elapsed_time = end_time - start_time
     print(f"Response: {answer}")
     print(f"Time taken: {elapsed_time:.2f} seconds")
+    prompt += f"\nYou: {answer}\n make another sentence and don't repeat."
 
 if __name__ == "__main__":
-    test_speed()
+    x = 0
+    start = time.time()
+    while x < 100:
+        print(f"Progress: {x+1}%")
+        test_speed()
+        x += 1
+    end = time.time()
+    total_time = end - start
+    print(f"generate complete")
+    print(f"Total time taken: {total_time:.2f} seconds")

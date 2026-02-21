@@ -126,7 +126,7 @@ llm = Llama(
     verbose=False
 )
 
-def execute_action(tool, entities) -> str:
+def execute_action(websocket, tool, entities) -> str:
     if tool == "OpenApplication":
         print(f"Opening application at path: {entities.get('app_path', '')}")
         conclusion = basic.open_app(entities.get("app_path", ""))
@@ -358,7 +358,7 @@ async def stream_hawk(websocket: WebSocket, input_prompt: str, location: str):
         tool, entities = parse_tool_entities(ans)
         if tool == None:
             conclusion = ""
-        conclusion = execute_action(tool, entities)
+        conclusion = execute_action(websocket, tool, entities)
         print(f"\nExecution Conclusion: {conclusion}\n")
         append_with_limit(chat_history_for_answerer, {"role": "H.A.W.K.(understander)", "content": ans, "conclusion": conclusion})
         ans += f", Conclusion: {conclusion}"

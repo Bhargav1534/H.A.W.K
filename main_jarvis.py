@@ -14,7 +14,7 @@ with open("ws_history.json", "r", encoding="utf-8") as file:
 
 def write_to_server_activity(data: str):
     with open("server_activity.txt", "a", encoding="utf-8") as file:
-        file.write(data + "   ⏱️ Time: " + str(time.time()) + "\n")
+        file.write(data + "   ⏱️ Time: " + time.strftime("%Y-%m-%d %H:%M:%S") + "\n")
 
 security = HTTPBasic()
 USERNAME = os.getenv("API_USERNAME")
@@ -186,16 +186,52 @@ async def stream_endpoint(request: Request, dependencies=Depends(get_auth)):
 
 @app.websocket("/hawk")
 async def hawk_ws(websocket: WebSocket):
-    print(time.time())
     await websocket.accept()
+
+    connection_state = {
+        "active_transfer": None,
+        "file_handle": None
+    }
+
     hb_task = asyncio.create_task(heartbeat(websocket))
+
     try:
-        data = await websocket.receive_json()
-        prompt = data.get("prompt", "")
-        location = data.get("location", "")
-        write_to_server_activity(f"📥 Prompt received via WebSocket: {prompt}")
-        # ✅ stream_hawk sends directly to websocket
-        await hawk.stream_hawk(websocket, prompt, location)
+        while True:
+            message = await websocket.receive()
+
+            # -------- TEXT MESSAGE --------
+            if "text" in message:
+                data = json.loads(message["text"])
+                msg_type = data.get("type")
+
+                if msg_type == "hello":
+                    prompt = data.get("prompt", "")
+                    location = data.get("location", "")
+                    await hawk.stream_hawk(websocket, prompt, location)
+
+                elif msg_type == "upload_start":
+                    filename = data["filename"]
+                    transfer_id = data["transfer_id"]
+
+                    path = os.path.join("shared_files", filename)
+                    f = open(path, "wb")
+
+                    connection_state["active_transfer"] = transfer_id
+                    connection_state["file_handle"] = f
+
+                elif msg_type == "upload_complete":
+                    connection_state["file_handle"].close()
+                    connection_state["file_handle"] = None
+                    connection_state["active_transfer"] = None
+
+                elif msg_type == "ping":
+                    await websocket.send_json({"type": "pong"})
+
+            # -------- BINARY MESSAGE --------
+            elif "bytes" in message:
+                if connection_state["file_handle"]:
+                    connection_state["file_handle"].write(message["bytes"])
+
     except WebSocketDisconnect:
         pass
     finally:

@@ -1,5 +1,5 @@
 # AllTools.py
-import pyautogui as pag, time, os, json, platform, glob, subprocess, sys, sqlite3, psutil, dateparser, threading, wikipediaapi, firebase_admin, tkinter as tk, requests, math
+import pyautogui as pag, time, os, json, platform, glob, subprocess, sys, sqlite3, psutil, dateparser, threading, wikipediaapi, firebase_admin, tkinter as tk, requests, math, uuid
 from datetime import timedelta, date, datetime
 from tkcalendar import Calendar
 from ctypes import cast, POINTER
@@ -118,6 +118,28 @@ class BasicTools:
         self.app_name = None
         self.path = None
         self.file_name = None
+
+    async def send_file(websocket, path):
+        filename = os.path.basename(path)
+        size = os.path.getsize(path)
+        transfer_id = str(uuid.uuid4())
+
+        await websocket.send_json({
+            "type": "file_start",
+            "transfer_id": transfer_id,
+            "filename": filename,
+            "size": size
+        })
+
+        with open(path, "rb") as f:
+            while chunk := f.read(64 * 1024):
+                await websocket.send_bytes(chunk)
+
+        await websocket.send_json({
+            "type": "file_complete",
+            "transfer_id": transfer_id
+        })
+
 
     def update_activity_json(self, key, new_activity, path="memory/knowledge.json"):
         with open(path, "r") as file:

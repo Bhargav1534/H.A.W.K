@@ -29,6 +29,9 @@ situational/*
 test_screenshots/
 test_screenshots/*
 server_activity.txt
+311env/
+hawkenv/
+
 
 # (Optional) Any large model files
 *.gguf

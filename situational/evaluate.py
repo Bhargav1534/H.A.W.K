@@ -8,8 +8,8 @@ from sklearn.metrics import accuracy_score
 # -------------------------------
 # 1. Paths
 # -------------------------------
-model_dir = "./brain/models/classify_large"  # path to the trained model
-data_file = os.path.abspath("./brain/models/commandsnew.csv")  # dataset path
+model_dir = "./brain/models/classify_large_v2"  # path to the trained model
+data_file = os.path.abspath("./brain/models/classify.csv")  # dataset path
 
 # -------------------------------
 # 2. Load dataset

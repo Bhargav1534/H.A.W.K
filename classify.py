@@ -16,6 +16,7 @@ def classify_input(test_text):
         outputs = model(**encodings)
         logits = outputs.logits
         predictions = torch.argmax(logits, dim=1)
+        print(f"Predicted class index: {predictions}")
         label = labels[predictions.item()]
         print(label)
         return label
