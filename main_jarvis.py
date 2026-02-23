@@ -5,7 +5,7 @@ from pydantic import BaseModel
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from contextlib import asynccontextmanager
 from requests import patch
-import hawk, memory.AllTools as tools, os, uvicorn, threading, json, asyncio, time
+import hawk, memory.AllTools as tools, os, uvicorn, threading, json, asyncio, time, base64
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -183,15 +183,11 @@ async def stream_endpoint(request: Request, dependencies=Depends(get_auth)):
     print(time.time())
     write_to_server_activity(f"📥 POST request received at /hawk")
     return StreamingResponse("online")
-
 @app.websocket("/hawk")
 async def hawk_ws(websocket: WebSocket):
     await websocket.accept()
 
-    connection_state = {
-        "active_transfer": None,
-        "file_handle": None
-    }
+    transfers = {}  # transfer_id -> {"file": f, "chunks": {}}
 
     hb_task = asyncio.create_task(heartbeat(websocket))
 
@@ -199,44 +195,76 @@ async def hawk_ws(websocket: WebSocket):
         while True:
             message = await websocket.receive()
 
-            # -------- TEXT MESSAGE --------
-            if "text" in message:
-                data = json.loads(message["text"])
-                msg_type = data.get("type")
+            if "text" not in message:
+                continue
 
-                if msg_type == "hello":
-                    prompt = data.get("prompt", "")
-                    location = data.get("location", "")
-                    await hawk.stream_hawk(websocket, prompt, location)
+            data = json.loads(message["text"])
+            msg_type = data.get("type")
 
-                elif msg_type == "upload_start":
-                    filename = data["filename"]
-                    transfer_id = data["transfer_id"]
+            # ───────── PROMPT ─────────
+            if msg_type == "hello":
+                asyncio.create_task(
+                    hawk.stream_hawk(
+                        websocket,
+                        data.get("prompt", ""),
+                        data.get("location", "")
+                    )
+                )
 
-                    path = os.path.join("shared_files", filename)
-                    f = open(path, "wb")
+            # ───────── UPLOAD START ─────────
+            elif msg_type == "upload_start":
+                tid = data["transfer_id"]
+                filename = data["filename"]
 
-                    connection_state["active_transfer"] = transfer_id
-                    connection_state["file_handle"] = f
+                os.makedirs("shared_files", exist_ok=True)
+                path = os.path.join("shared_files", filename)
 
-                elif msg_type == "upload_complete":
-                    connection_state["file_handle"].close()
-                    connection_state["file_handle"] = None
-                    connection_state["active_transfer"] = None
+                print(f"📤 UPLOAD START: {filename} ({tid})")
 
-                elif msg_type == "ping":
-                    await websocket.send_json({"type": "pong"})
+                transfers[tid] = {
+                    "file": open(path, "wb"),
+                    "chunks": {}
+                }
 
-            # -------- BINARY MESSAGE --------
-            elif "bytes" in message:
-                if connection_state["file_handle"]:
-                    connection_state["file_handle"].write(message["bytes"])
+            # ───────── UPLOAD CHUNK ─────────
+            elif msg_type == "upload_chunk":
+                tid = data["transfer_id"]
+                index = data["index"]
+                encoded = data["data"]
+
+                if tid not in transfers:
+                    continue
+
+                transfers[tid]["chunks"][index] = base64.b64decode(encoded)
+
+            # ───────── UPLOAD COMPLETE ─────────
+            elif msg_type == "upload_complete":
+                tid = data["transfer_id"]
+                info = transfers.pop(tid, None)
+
+                if not info:
+                    continue
+
+                f = info["file"]
+                chunks = info["chunks"]
+
+                for i in range(len(chunks)):
+                    f.write(chunks[i])
+
+                f.close()
+                print(f"✅ UPLOAD COMPLETE: {tid}")
+
+            elif msg_type == "ping":
+                await websocket.send_json({"type": "pong"})
 
     except WebSocketDisconnect:
         pass
     finally:
+        for info in transfers.values():
+            info["file"].close()
         hb_task.cancel()
 
+        
 @app.get("/history")
 async def get_history(dependencies=Depends(get_auth)):
     history = memtools.history()
