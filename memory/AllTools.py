@@ -118,6 +118,92 @@ class BasicTools:
         self.app_name = None
         self.path = None
         self.file_name = None
+        self.remtool = RemindersManager()
+        self.loctool = LocationManager()
+        self.know = KnowledgeManager()
+
+    def execute_action(self, websocket, tool, entities) -> str:
+        if tool == "OpenApplication":
+            print(f"Opening application at path: {entities.get('app_path', '')}")
+            conclusion = self.open_app(entities.get("app_path", ""))
+
+        # elif tool == "AddTodoList":
+        #     task = entities.get("task", "")
+        #     loc = entities.get("location", {})
+        #     conclusion = todo.add_todo(task, loc)
+
+        # elif tool == "RemoveTodoList":
+        #     task = entities.get("task", "")
+        #     conclusion = todo.remove_todo(task)
+
+        # elif tool == "ClearTodoList":
+        #     conclusion = todo.clear_todos()
+
+        # elif tool == "CheckTodoList":
+        #     conclusion = todo.check_todo(entities.get("task", ""))
+
+        # elif tool == "ListTodoList":
+        #     conclusion = todo.list_todos()
+
+        elif tool == "AddReminder":
+            reminder = entities.get("reminder", "")
+            when_to_remind = entities.get("when_to_remind", "")
+            print(f"Adding reminder: {reminder} at {when_to_remind}")
+            conclusion = self.remtool.add_reminder(reminder, when_to_remind)
+
+        elif tool == "RemoveReminder":
+            print(f"Removing reminder: {entities.get('reminder', '')}")
+            conclusion = self.remtool.delete_reminder(entities.get("reminder", ""))
+
+        elif tool == "ListReminders":
+            conclusion = self.remtool.list_reminders()
+
+        elif tool == "MarkReminderAsDone":
+            print(f"Marking reminder as done: {entities.get('reminder', '')}")
+            conclusion = self.remtool.mark_reminder_done(entities.get("reminder", ""))
+
+        elif tool == "SetTimer":
+            print(f"Setting timer for: {entities.get('duration', '')}")
+            conclusion = self.start_timer(entities.get("duration", ""))
+
+        elif tool == "LockScreen":
+            conclusion = self.lock_system()
+
+        elif tool == "ShutdownSystem":
+            conclusion = self.shutdown_system()
+
+        elif tool == "RestartSystem":
+            conclusion = self.restart_system()
+
+        elif tool == "SetVolume":
+            volume = float(entities.get("volume", 50))  # Default to 50
+            print(f"Setting volume to: {volume / 100}")
+            conclusion = self.set_volume(volume / 100)
+
+        elif tool == "GetDate":
+            conclusion = self.get_date()
+
+        elif tool == "CheckTime":
+            conclusion = self.check_time()
+
+        elif tool == "AddLocation":
+            name = entities.get("location_name", "")
+            lat = entities.get("latitude", "")
+            long = entities.get("longitude", "")
+            print(f"Adding location: {name} at ({lat}, {long})")
+            # conclusion = loctool.add_location(name, lat, long)
+            self.know.insert_location_json(name, lat, long)
+
+        elif tool == "RemoveLocation":
+            name = entities.get("location_name", "")
+            print(f"Removing location: {name}")
+            conclusion = self.loctool.remove_location(name)
+
+        else:
+            conclusion = "none"
+
+        return conclusion
+
 
     async def send_file(websocket, path):
         filename = os.path.basename(path)
@@ -1113,4 +1199,4 @@ class HawkScheduler():
         proc.communicate(filtered)
 
 if __name__ == "__main__":
-    RemindersManager().add_reminder("", "")
+    BasicTools.send_file()

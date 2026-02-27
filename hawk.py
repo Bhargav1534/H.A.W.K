@@ -126,88 +126,6 @@ llm = Llama(
     verbose=False
 )
 
-def execute_action(websocket, tool, entities) -> str:
-    if tool == "OpenApplication":
-        print(f"Opening application at path: {entities.get('app_path', '')}")
-        conclusion = basic.open_app(entities.get("app_path", ""))
-
-    # elif tool == "AddTodoList":
-    #     task = entities.get("task", "")
-    #     loc = entities.get("location", {})
-    #     conclusion = todo.add_todo(task, loc)
-
-    # elif tool == "RemoveTodoList":
-    #     task = entities.get("task", "")
-    #     conclusion = todo.remove_todo(task)
-
-    # elif tool == "ClearTodoList":
-    #     conclusion = todo.clear_todos()
-
-    # elif tool == "CheckTodoList":
-    #     conclusion = todo.check_todo(entities.get("task", ""))
-
-    # elif tool == "ListTodoList":
-    #     conclusion = todo.list_todos()
-
-    elif tool == "AddReminder":
-        reminder = entities.get("reminder", "")
-        when_to_remind = entities.get("when_to_remind", "")
-        print(f"Adding reminder: {reminder} at {when_to_remind}")
-        conclusion = remtool.add_reminder(reminder, when_to_remind)
-
-    elif tool == "RemoveReminder":
-        print(f"Removing reminder: {entities.get('reminder', '')}")
-        conclusion = remtool.delete_reminder(entities.get("reminder", ""))
-
-    elif tool == "ListReminders":
-        conclusion = remtool.list_reminders()
-
-    elif tool == "MarkReminderAsDone":
-        print(f"Marking reminder as done: {entities.get('reminder', '')}")
-        conclusion = remtool.mark_reminder_done(entities.get("reminder", ""))
-
-    elif tool == "SetTimer":
-        print(f"Setting timer for: {entities.get('duration', '')}")
-        conclusion = basic.start_timer(entities.get("duration", ""))
-
-    elif tool == "LockScreen":
-        conclusion = basic.lock_system()
-
-    elif tool == "ShutdownSystem":
-        conclusion = basic.shutdown_system()
-
-    elif tool == "RestartSystem":
-        conclusion = basic.restart_system()
-
-    elif tool == "SetVolume":
-        volume = float(entities.get("volume", 50))  # Default to 50
-        print(f"Setting volume to: {volume / 100}")
-        conclusion = basic.set_volume(volume / 100)
-
-    elif tool == "GetDate":
-        conclusion = basic.get_date()
-
-    elif tool == "CheckTime":
-        conclusion = basic.check_time()
-
-    elif tool == "AddLocation":
-        name = entities.get("location_name", "")
-        lat = entities.get("latitude", "")
-        long = entities.get("longitude", "")
-        print(f"Adding location: {name} at ({lat}, {long})")
-        # conclusion = loctool.add_location(name, lat, long)
-        know.insert_location_json(name, lat, long)
-
-    elif tool == "RemoveLocation":
-        name = entities.get("location_name", "")
-        print(f"Removing location: {name}")
-        conclusion = loctool.remove_location(name)
-
-    else:
-        conclusion = "none"
-
-    return conclusion
-
 def append_with_limit(history, message, limit=2):
     history.append(message)
     if len(history) > limit:
@@ -358,7 +276,7 @@ async def stream_hawk(websocket: WebSocket, input_prompt: str, location: str):
         tool, entities = parse_tool_entities(ans)
         if tool == None:
             conclusion = ""
-        conclusion = execute_action(websocket, tool, entities)
+        conclusion = basic.execute_action(websocket, tool, entities)
         print(f"\nExecution Conclusion: {conclusion}\n")
         append_with_limit(chat_history_for_answerer, {"role": "H.A.W.K.(understander)", "content": ans, "conclusion": conclusion})
         ans += f", Conclusion: {conclusion}"

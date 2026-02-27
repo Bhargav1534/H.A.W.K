@@ -1,7 +1,15 @@
 from llama_cpp import Llama
-import json, datetime
+from datetime import timedelta, time
+import json, datetime, os, firebase_admin, time as ti
+from firebase_admin import credentials, messaging
 
 model_path = "brain\\models\\Mistral-7B-Instruct-v0.3-Q8_0.gguf"
+
+cred = credentials.Certificate(os.environ["SERVICE_ACCOUNT_PATH"])
+firebase_admin.initialize_app(cred)
+
+# Read FCM token from file
+fcm_token = os.getenv("FCM_TOKEN")
 
 # Load GGUF model
 llm = Llama(
@@ -54,10 +62,46 @@ def reminder_to_boss(reminder):
     answer = notifying_engine(prompt)
     return answer
 
+def mobile_notify(token: str, title: str, body: str):
+    message = messaging.Message(
+        notification=messaging.Notification(
+            title=title,
+            body=body
+        ),
+        token=token,
+    )
+    response = messaging.send(message)
+    print("Successfully sent message:", response)
+
+def delete_reminder():
+    pass
+
+def get_due_reminders(fcm_token):
+    if not fcm_token:
+        print("⚠ No FCM token found. Skipping notification.")
+        return
+    
+    json_path = os.path.abspath("C:\Users\chenj\Desktop\codes\H.A.W.K\hawk_backend\memory\knowledge.json")
+    with open(json_path, "w") as f:
+        results = json.load(f)
+
+    if results:
+        noti = reminder_to_boss("\n".join(results))
+        mobile_notify(fcm_token, "Due Reminders", noti)
+        for result in results:
+            delete_reminder(result)
+
+def trigger():
+    try:
+        with open(os.getenv("FCM_TOKEN")) as f:
+            fcm_token = f.read().strip()
+    except FileNotFoundError:
+        print("⚠ fcm_token.txt not found.")
+        return
+
+    while True:
+        get_due_reminders(fcm_token)
+        ti.sleep(900)  # every 15 mins
+
 if __name__ == "__main__":
-    inp = "park bike"
-    print(f"{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    result = reminder_to_boss(inp)
-    print(f"🕒 {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    resu = "\n".join(result)
-    print(resu)
+    pass
